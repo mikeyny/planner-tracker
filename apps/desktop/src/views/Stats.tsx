@@ -49,13 +49,13 @@ export function StatsView() {
 				<Tile
 					label="Sessions"
 					value={String(stats.sessions)}
-					sub={`${stats.switches} project switches`}
+					sub={`${stats.switches} project switch${stats.switches === 1 ? "" : "es"}`}
 				/>
 				<Tile label="Tasks done" value={String(stats.tasksDone)} />
 				<Tile
 					label="Pulled away"
 					value={String(stats.urges + stats.interruptions)}
-					sub={`${stats.urges} urges · ${stats.interruptions} interruptions`}
+					sub={`${stats.urges} urge${stats.urges === 1 ? "" : "s"} · ${stats.interruptions} interruption${stats.interruptions === 1 ? "" : "s"}`}
 				/>
 			</div>
 

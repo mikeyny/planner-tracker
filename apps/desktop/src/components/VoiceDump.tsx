@@ -170,6 +170,7 @@ export function VoiceDump({
 				</div>
 			</div>
 			<textarea
+				spellCheck={false}
 				value={value}
 				onChange={(e) => onChange(e.target.value)}
 				rows={7}

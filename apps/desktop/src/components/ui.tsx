@@ -23,7 +23,7 @@ export function Button({
 		<button
 			type="button"
 			className={cx(
-				"inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer whitespace-nowrap",
+				"inline-flex items-center justify-center gap-2 rounded-[10px] font-semibold [&_svg]:shrink-0 transition-colors disabled:opacity-40 disabled:pointer-events-none cursor-pointer whitespace-nowrap",
 				size === "sm" && "h-7 px-2.5 text-xs",
 				size === "md" && "h-9 px-3.5 text-[13px]",
 				size === "lg" && "h-11 px-5 text-sm",

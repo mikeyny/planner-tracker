@@ -17,6 +17,8 @@ async function request<T>(
 	body?: unknown,
 ): Promise<T> {
 	const isForm = body instanceof FormData;
+	// Never leave a button spinning forever if the API restarts mid-request.
+	const timeoutMs = isForm ? 150_000 : 45_000;
 	let res: Response;
 	try {
 		res = await fetch(`${API_URL}/api${path}`, {
@@ -27,8 +29,11 @@ async function request<T>(
 			},
 			body:
 				body === undefined ? undefined : isForm ? body : JSON.stringify(body),
+			signal: AbortSignal.timeout(timeoutMs),
 		});
-	} catch {
+	} catch (err) {
+		if (err instanceof DOMException && err.name === "TimeoutError")
+			throw new ApiError("The local API took too long to answer. Try again.", 0);
 		throw new ApiError(
 			"Can't reach the local API. It may still be starting.",
 			0,

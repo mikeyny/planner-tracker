@@ -362,7 +362,7 @@ function ReviewStep({
 						<div
 							key={d.uid}
 							className={cx(
-								"grid grid-cols-[18px_24px_minmax(0,1fr)_150px_74px_96px] items-center gap-2 rounded-[11px] border border-line bg-surface px-3 py-2",
+								"grid grid-cols-[18px_24px_minmax(0,1fr)_150px_104px_96px] items-center gap-2 rounded-[11px] border border-line bg-surface px-3 py-2",
 								!d.include && "opacity-45",
 							)}
 						>
@@ -436,7 +436,7 @@ function ReviewStep({
 											type="number"
 											min={5}
 											step={5}
-											className={`${inputCls} h-8 w-16 text-right font-mono`}
+											className={`${inputCls.replace("w-full", "w-16")} h-8 text-right font-mono`}
 											value={d.estimateMin ?? 30}
 											onChange={(e) =>
 												patch(i, { estimateMin: Number(e.target.value) || 30 })

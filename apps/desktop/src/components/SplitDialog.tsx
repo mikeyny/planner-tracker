@@ -87,7 +87,7 @@ export function SplitDialog({
 									{i + 1}
 								</span>
 								<input
-									className={inputCls}
+									className={`${inputCls} min-w-0 flex-1`}
 									value={s.title}
 									placeholder="Step"
 									onChange={(e) =>
@@ -99,7 +99,7 @@ export function SplitDialog({
 									}
 								/>
 								<input
-									className={`${inputCls} w-20 text-right font-mono`}
+									className={`${inputCls.replace("w-full", "w-20")} shrink-0 text-right font-mono`}
 									type="number"
 									min={5}
 									max={50}

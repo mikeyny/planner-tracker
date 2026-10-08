@@ -2,7 +2,7 @@ import { formatMinutes, suggestedBreakMin, TIMER_MODES } from "@deep/shared";
 import {
 	ChevronDown,
 	Coffee,
-	Flag,
+	Hand,
 	Pause,
 	PictureInPicture2,
 	Play,
@@ -292,7 +292,7 @@ export function FocusView() {
 									)
 								}
 							>
-								<Flag size={13} /> Interrupted <Kbd>I</Kbd>
+								<Hand size={13} /> Interrupted <Kbd>I</Kbd>
 							</Button>
 						</div>
 						<div className="text-[11px] text-faint">

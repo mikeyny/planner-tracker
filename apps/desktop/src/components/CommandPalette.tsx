@@ -105,6 +105,8 @@ export function CommandPalette() {
 				})
 			: list.slice(0, 9);
 
+		// Exact matches stay on top; AI goes first only when nothing matched.
+		const matched = filtered.length;
 		if (q.trim()) {
 			const parsed = parseQuickAdd(q, projects);
 			filtered.push({
@@ -142,7 +144,7 @@ export function CommandPalette() {
 				},
 			});
 			if (ai?.gemini) {
-				filtered.unshift({
+				filtered.splice(matched, 0, {
 					id: "ai",
 					label: (
 						<span className="flex items-center gap-2">

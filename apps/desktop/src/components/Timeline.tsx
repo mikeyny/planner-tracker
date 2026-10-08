@@ -249,7 +249,7 @@ export function Timeline({
 									{b.title}
 								</span>
 							)}
-							{h > 30 && (
+							{h > 44 && (
 								<span className="font-mono text-[10px] font-normal text-muted">
 									{minToHhmm(b.startMin)}–
 									{minToHhmm(b.startMin + b.durationMin)}
