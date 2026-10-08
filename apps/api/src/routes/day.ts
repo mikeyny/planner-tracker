@@ -10,6 +10,15 @@ import { capacity, dayStats, multipliers, sessionsForDay } from "../lib/stats";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
+const blockInput = z.object({
+	taskId: z.number().int().nullable(),
+	projectId: z.number().int().nullable(),
+	title: z.string().trim().min(1).max(200),
+	startMin: z.number().int().min(0).max(1440),
+	durationMin: z.number().int().min(5).max(720),
+	kind: z.enum(["task", "meeting", "break"]),
+});
+
 function toPlan(date: string, row?: typeof dayPlans.$inferSelect): DayPlan {
 	return {
 		date,
@@ -85,21 +94,7 @@ export const dayRouter = new Hono()
 	)
 	.put(
 		"/:date/blocks",
-		zValidator(
-			"json",
-			z.object({
-				blocks: z.array(
-					z.object({
-						taskId: z.number().int().nullable(),
-						projectId: z.number().int().nullable(),
-						title: z.string().trim().min(1).max(200),
-						startMin: z.number().int().min(0).max(1440),
-						durationMin: z.number().int().min(5).max(720),
-						kind: z.enum(["task", "meeting", "break"]),
-					}),
-				),
-			}),
-		),
+		zValidator("json", z.object({ blocks: z.array(blockInput) })),
 		async (c) => {
 			const date = dateStr.parse(c.req.param("date"));
 			const { blocks } = c.req.valid("json");
@@ -112,6 +107,19 @@ export const dayRouter = new Hono()
 			});
 			changed("day");
 			return c.json({ ok: true });
+		},
+	)
+	/** Add blocks without touching the existing ones (meetings from a brain dump). */
+	.post(
+		"/:date/blocks",
+		zValidator("json", z.object({ blocks: z.array(blockInput).min(1) })),
+		async (c) => {
+			const date = dateStr.parse(c.req.param("date"));
+			await db
+				.insert(timeBlocks)
+				.values(c.req.valid("json").blocks.map((b) => ({ ...b, date })));
+			changed("day");
+			return c.json({ ok: true }, 201);
 		},
 	)
 	.get("/:date/capacity", async (c) => {

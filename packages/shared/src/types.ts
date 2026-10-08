@@ -155,6 +155,8 @@ export interface Multiplier {
 }
 
 export interface ExtractedTask {
+	/** 24h "HH:MM" when the item is a meeting at a set time; it becomes a timeline block, not a task. */
+	meetingAt: string | null;
 	title: string;
 	projectId: number | null;
 	estimateMin: number | null;

@@ -1,5 +1,16 @@
-import type { Energy, ExtractedTask, Task } from "@deep/shared";
-import { ArrowLeft, Loader2, Sparkles, Star } from "lucide-react";
+import {
+	type Energy,
+	type ExtractedTask,
+	hhmmToMin,
+	type Task,
+} from "@deep/shared";
+import {
+	ArrowLeft,
+	CalendarClock,
+	Loader2,
+	Sparkles,
+	Star,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CapacityBanner } from "../components/Capacity";
 import { TaskRow } from "../components/TaskRow";
@@ -289,18 +300,36 @@ function ReviewStep({
 	const patch = (i: number, p: Partial<Draft>) =>
 		setDrafts(drafts.map((d, j) => (j === i ? { ...d, ...p } : d)));
 	const included = drafts.filter((d) => d.include && d.title.trim());
-	const topCount = included.filter((d) => d.isTop3).length;
+	const taskDrafts = included.filter((d) => !d.meetingAt);
+	const meetings = included.filter((d) => d.meetingAt);
+	const topCount = taskDrafts.filter((d) => d.isTop3).length;
 
 	const commit = async () => {
 		setBusy(true);
 		const ok = await attempt(async () => {
-			if (included.length) {
+			if (taskDrafts.length) {
 				await api.post("/tasks/bulk", {
-					tasks: included.map(({ include: _i, uid: _u, ...t }) => ({
-						...t,
-						plannedFor: today,
+					tasks: taskDrafts.map(
+						({ include: _i, uid: _u, meetingAt: _m, ...t }) => ({
+							...t,
+							plannedFor: today,
+						}),
+					),
+				});
+			}
+			// Meetings go straight onto the timeline so they block time.
+			if (meetings.length) {
+				await api.post(`/day/${today}/blocks`, {
+					blocks: meetings.map((m) => ({
+						taskId: null,
+						projectId: m.projectId,
+						title: m.title,
+						startMin: hhmmToMin(m.meetingAt!),
+						durationMin: m.estimateMin ?? 30,
+						kind: "meeting",
 					})),
 				});
+				queryClient.invalidateQueries({ queryKey: ["day"] });
 			}
 			await Promise.all(
 				[...pull].map((id) => api.patch(`/tasks/${id}`, { plannedFor: today })),
@@ -344,17 +373,23 @@ function ReviewStep({
 								onChange={(e) => patch(i, { include: e.target.checked })}
 								className="size-4 accent-[#eceaf0]"
 							/>
-							<button
-								type="button"
-								aria-label="Top 3"
-								onClick={() => patch(i, { isTop3: !d.isTop3 })}
-								className="cursor-pointer"
-							>
-								<Star
-									size={15}
-									className={d.isTop3 ? "fill-warn text-warn" : "text-faint"}
-								/>
-							</button>
+							{d.meetingAt ? (
+								<span title="Meeting: goes on the timeline">
+									<CalendarClock size={15} className="text-muted" />
+								</span>
+							) : (
+								<button
+									type="button"
+									aria-label="Top 3"
+									onClick={() => patch(i, { isTop3: !d.isTop3 })}
+									className="cursor-pointer"
+								>
+									<Star
+										size={15}
+										className={d.isTop3 ? "fill-warn text-warn" : "text-faint"}
+									/>
+								</button>
+							)}
 							<div className="min-w-0">
 								<input
 									value={d.title}
@@ -384,35 +419,67 @@ function ReviewStep({
 									</option>
 								))}
 							</select>
-							<input
-								aria-label="Estimate in minutes"
-								type="number"
-								min={5}
-								step={5}
-								className={`${inputCls} h-8 text-right font-mono`}
-								value={d.estimateMin ?? ""}
-								placeholder="min"
-								onChange={(e) =>
-									patch(i, {
-										estimateMin: e.target.value ? Number(e.target.value) : null,
-									})
-								}
-							/>
-							<select
-								aria-label="Energy"
-								className={`${inputCls} h-8`}
-								value={d.energy ?? ""}
-								onChange={(e) =>
-									patch(i, {
-										energy: (e.target.value || null) as Energy | null,
-									})
-								}
-							>
-								<option value="">energy</option>
-								<option value="deep">deep</option>
-								<option value="shallow">shallow</option>
-								<option value="admin">admin</option>
-							</select>
+							{d.meetingAt ? (
+								<>
+									<input
+										aria-label="Meeting time"
+										type="time"
+										className={`${inputCls} h-8 font-mono`}
+										value={d.meetingAt ?? ""}
+										onChange={(e) =>
+											patch(i, { meetingAt: e.target.value || null })
+										}
+									/>
+									<span className="flex items-center gap-1 font-mono text-[11px] text-muted">
+										<input
+											aria-label="Meeting length in minutes"
+											type="number"
+											min={5}
+											step={5}
+											className={`${inputCls} h-8 w-16 text-right font-mono`}
+											value={d.estimateMin ?? 30}
+											onChange={(e) =>
+												patch(i, { estimateMin: Number(e.target.value) || 30 })
+											}
+										/>
+										min
+									</span>
+								</>
+							) : (
+								<>
+									<input
+										aria-label="Estimate in minutes"
+										type="number"
+										min={5}
+										step={5}
+										className={`${inputCls} h-8 text-right font-mono`}
+										value={d.estimateMin ?? ""}
+										placeholder="min"
+										onChange={(e) =>
+											patch(i, {
+												estimateMin: e.target.value
+													? Number(e.target.value)
+													: null,
+											})
+										}
+									/>
+									<select
+										aria-label="Energy"
+										className={`${inputCls} h-8`}
+										value={d.energy ?? ""}
+										onChange={(e) =>
+											patch(i, {
+												energy: (e.target.value || null) as Energy | null,
+											})
+										}
+									>
+										<option value="">energy</option>
+										<option value="deep">deep</option>
+										<option value="shallow">shallow</option>
+										<option value="admin">admin</option>
+									</select>
+								</>
+							)}
 						</div>
 					))}
 				</div>

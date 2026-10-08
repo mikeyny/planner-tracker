@@ -1,10 +1,21 @@
 import { aiRuns, db } from "@deep/db";
 import type { Energy, ExtractedTask } from "@deep/shared";
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
 export class AiError extends Error {}
+
+/**
+ * These are small structured tasks: keep model "thinking" to a minimum for speed.
+ * Gemini 3 takes a thinking level; 2.5 Flash takes a token budget.
+ */
+function thinkingConfig() {
+	if (MODEL.startsWith("gemini-3"))
+		return { thinkingLevel: ThinkingLevel.MINIMAL };
+	if (MODEL.includes("flash")) return { thinkingBudget: 0 };
+	return undefined;
+}
 
 export function geminiAvailable() {
 	return Boolean(process.env.GEMINI_API_KEY);
@@ -36,6 +47,7 @@ async function generateJson<T>(
 				responseMimeType: "application/json",
 				responseSchema: schema,
 				temperature: 0.3,
+				thinkingConfig: thinkingConfig(),
 			},
 		});
 		const text = res.text?.trim();
@@ -102,6 +114,12 @@ const taskSchema = {
 		},
 		isTop3: { type: Type.BOOLEAN },
 		dueDate: { type: Type.STRING, nullable: true, description: "YYYY-MM-DD" },
+		meetingAt: {
+			type: Type.STRING,
+			nullable: true,
+			description:
+				"24h HH:MM start time if this is a meeting or call at a set time",
+		},
 	},
 	required: [
 		"title",
@@ -111,6 +129,7 @@ const taskSchema = {
 		"nextAction",
 		"isTop3",
 		"dueDate",
+		"meetingAt",
 	],
 	propertyOrdering: [
 		"title",
@@ -120,6 +139,7 @@ const taskSchema = {
 		"nextAction",
 		"isTop3",
 		"dueDate",
+		"meetingAt",
 	],
 };
 
@@ -145,8 +165,9 @@ Rules:
 - estimateMin: realistic minutes (5–240). Use what the speaker said if they gave a time.
 - energy: "deep" for focused building/writing/problem solving, "shallow" for communication and small edits, "admin" for chores.
 - nextAction: a concrete first step that takes under 5 minutes to start.
-- isTop3: true for at most 3 tasks that matter most today (things the speaker stressed, deadlines, avoided work).
-- dueDate: only if a deadline was mentioned; resolve weekdays relative to today.
+- isTop3: true for at most 3 tasks that matter most today (things the speaker stressed, deadlines, avoided work). Never for meetings.
+- dueDate: null unless the speaker named a deadline ("before Friday", "by the 15th"). Do not use today's date just because the work is for today. Resolve weekdays relative to today.
+- meetingAt: for meetings, calls and appointments at a set time, the 24-hour start time ("a call at 2" in a workday = "14:00"). estimateMin is then the meeting length (default 30). null for normal work.
 
 Brain dump:
 """${text}"""`;
@@ -173,7 +194,14 @@ Brain dump:
 					: null,
 				nextAction: t.nextAction?.trim() || null,
 				isTop3: t.isTop3 && top++ < 3,
-				dueDate: /^\d{4}-\d{2}-\d{2}$/.test(t.dueDate ?? "") ? t.dueDate : null,
+				dueDate:
+					/^\d{4}-\d{2}-\d{2}$/.test(t.dueDate ?? "") &&
+					// The model sometimes stamps today on everything; keep it only if a same-day deadline was said.
+					(t.dueDate !== today ||
+						/\b(today|tonight|end of (the )?day|eod)\b/i.test(text))
+						? t.dueDate
+						: null,
+				meetingAt: /^\d{2}:\d{2}$/.test(t.meetingAt ?? "") ? t.meetingAt : null,
 			})),
 	};
 }
@@ -213,6 +241,7 @@ export function naiveExtract(
 			nextAction: null,
 			isTop3: false,
 			dueDate: null,
+			meetingAt: null,
 		};
 	});
 }
