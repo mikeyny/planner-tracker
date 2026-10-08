@@ -1,0 +1,33 @@
+[package]
+name = "deep"
+version = "0.1.0"
+description = "Deep focus planner"
+edition = "2021"
+
+[lib]
+name = "deep_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-notification = "2"
+tauri-plugin-global-shortcut = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Disk is tight on this machine: skip debug info to keep target/ small.
+[profile.dev]
+debug = false
+
+[profile.dev.package."*"]
+debug = false
+
+[profile.release]
+strip = true
+codegen-units = 4

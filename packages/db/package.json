@@ -1,0 +1,22 @@
+{
+	"name": "@deep/db",
+	"module": "src/index.ts",
+	"type": "module",
+	"private": true,
+	"exports": {
+		".": "./src/index.ts",
+		"./*": "./src/*"
+	},
+	"scripts": {
+		"generate": "bun --env-file=../../.env drizzle-kit generate",
+		"migrate": "bun --env-file=../../.env drizzle-kit migrate",
+		"studio": "bun --env-file=../../.env drizzle-kit studio"
+	},
+	"devDependencies": {
+		"drizzle-kit": "^0.31.8"
+	},
+	"dependencies": {
+		"drizzle-orm": "^0.45.1",
+		"postgres": "^3.4.7"
+	}
+}

@@ -1,0 +1,23 @@
+name: deep
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: deep_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-deep}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deep}
+      POSTGRES_DB: ${POSTGRES_DB:-deep}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - deep_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-deep} -d ${POSTGRES_DB:-deep}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  deep_pgdata:

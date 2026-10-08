@@ -1,0 +1,107 @@
+/* biome-ignore-all lint/complexity/noImportantStyles: reduced-motion must override every animation */
+@import "tailwindcss";
+@import "@fontsource-variable/onest";
+@import "@fontsource-variable/schibsted-grotesk";
+@import "@fontsource-variable/martian-mono";
+
+/* Calm, dark-first workspace. Project colours carry identity; rose marks "now" and recording. */
+@theme {
+	--color-bg: #0f0e12;
+	--color-surface: #17161c;
+	--color-raised: #201e26;
+	--color-hover: #27252e;
+	--color-line: #2b2932;
+	--color-line-strong: #3a3742;
+	--color-fg: #eceaf0;
+	--color-muted: #8f8a98;
+	--color-faint: #5d5966;
+	--color-rose: #e2456f;
+	--color-good: #2fb35a;
+	--color-warn: #f2b33d;
+	--color-warn-bg: #2a2312;
+
+	--font-sans: "Onest Variable", "Segoe UI", system-ui, sans-serif;
+	--font-display:
+		"Schibsted Grotesk Variable", "Segoe UI", system-ui, sans-serif;
+	--font-mono: "Martian Mono Variable", ui-monospace, Consolas, monospace;
+
+	--animate-breathe: breathe 4s ease-in-out infinite;
+	--animate-pop: pop 0.25s ease-out;
+
+	@keyframes breathe {
+		0%,
+		100% {
+			opacity: 0.55;
+		}
+		50% {
+			opacity: 1;
+		}
+	}
+	@keyframes pop {
+		0% {
+			transform: scale(0.96);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+}
+
+/* In a layer, so Tailwind utilities (e.g. outline-none on inputs) can override these. */
+@layer base {
+	:root {
+		color-scheme: dark;
+	}
+
+	html,
+	body,
+	#root {
+		height: 100%;
+	}
+
+	body {
+		background: var(--color-bg);
+		color: var(--color-fg);
+		font-family: var(--font-sans);
+		font-size: 14px;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+		user-select: none;
+		overflow: hidden;
+	}
+
+	input,
+	textarea,
+	[contenteditable] {
+		user-select: text;
+	}
+
+	::selection {
+		background: color-mix(in srgb, var(--color-rose) 40%, transparent);
+	}
+
+	:focus-visible {
+		outline: 2px solid color-mix(in srgb, var(--color-fg) 70%, transparent);
+		outline-offset: 2px;
+	}
+
+	* {
+		scrollbar-width: thin;
+		scrollbar-color: var(--color-line-strong) transparent;
+	}
+}
+
+@utility tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
+}

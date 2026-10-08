@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <title>Deep</title>
+  <rect width="1024" height="1024" rx="230" fill="#141218"/>
+  <circle cx="512" cy="512" r="330" fill="#26232c"/>
+  <path d="M512 512 L512 182 A330 330 0 1 1 226.2 677 Z" fill="#3987e5"/>
+  <circle cx="512" cy="512" r="236" fill="#141218"/>
+  <circle cx="512" cy="512" r="46" fill="#eceaf0"/>
+</svg>

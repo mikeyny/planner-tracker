@@ -1,0 +1,62 @@
+{
+	"name": "deep-focus",
+	"displayName": "Deep Focus",
+	"description": "Connects VS Code to the Deep focus planner: status-bar timer, automatic time tracking, start and pause rules.",
+	"publisher": "techvest",
+	"version": "0.1.0",
+	"private": true,
+	"engines": {
+		"vscode": "^1.90.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"onStartupFinished"
+	],
+	"main": "./dist/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "deep.start",
+				"title": "Deep: Start focus session"
+			},
+			{
+				"command": "deep.pauseResume",
+				"title": "Deep: Pause / resume"
+			},
+			{
+				"command": "deep.stop",
+				"title": "Deep: End session"
+			},
+			{
+				"command": "deep.capture",
+				"title": "Deep: Capture a thought"
+			},
+			{
+				"command": "deep.urge",
+				"title": "Deep: Log a distraction urge"
+			},
+			{
+				"command": "deep.menu",
+				"title": "Deep: Session menu"
+			}
+		],
+		"keybindings": [
+			{
+				"command": "deep.capture",
+				"key": "ctrl+alt+c"
+			}
+		]
+	},
+	"scripts": {
+		"build": "bun build src/extension.ts --outfile dist/extension.js --target node --format cjs --external vscode",
+		"package": "bun run build && bunx @vscode/vsce package --no-dependencies --allow-missing-repository --skip-license -o deep-focus.vsix",
+		"install-ext": "bun run package && code --install-extension deep-focus.vsix --force"
+	},
+	"devDependencies": {
+		"@deep/shared": "workspace:*",
+		"@types/vscode": "^1.90.0",
+		"@types/node": "^22.0.0"
+	}
+}

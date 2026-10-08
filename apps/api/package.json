@@ -1,0 +1,21 @@
+{
+	"name": "@deep/api",
+	"module": "src/index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun --env-file=../../.env --watch src/index.ts",
+		"start": "bun --env-file=../../.env src/index.ts",
+		"whisper:test": "bun --env-file=../../.env scripts/whisper-test.ts",
+		"dev:all": "bun --env-file=../../.env --watch src/index.ts"
+	},
+	"dependencies": {
+		"@deep/db": "workspace:*",
+		"@deep/shared": "workspace:*",
+		"@google/genai": "^1.0.0",
+		"@hono/zod-validator": "^0.7.6",
+		"drizzle-orm": "^0.45.1",
+		"hono": "^4.11.3",
+		"zod": "^4.0.0"
+	}
+}
