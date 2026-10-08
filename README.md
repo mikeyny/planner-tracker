@@ -92,6 +92,19 @@ Reload VS Code afterwards. The status bar shows the running session; click it fo
 
 `bun run build:desktop` produces an NSIS installer. It needs roughly 2 GB of free disk for the release build. "Start Deep when Windows starts" only works from the installed build.
 
+## Walkthrough video
+
+`video/` is a Remotion project that renders a narrated, ~4.5-minute walkthrough of every feature from real screenshots of the app: `video/out/deep-walkthrough.mp4`.
+
+```bash
+bun run video:studio        # preview and scrub in the browser
+bun run video:render        # render video/out/deep-walkthrough.mp4
+```
+
+- Narration text lives in `video/src/script.ts`; subtitles are generated from it.
+- `bun run --filter @deep/video voiceover` regenerates narration with Gemini TTS (free tier: ~10 requests per model per day). `bun video/scripts/vo-check.ts` checks each clip against the script with local Whisper.
+- Screenshots in `video/public/shots` were taken from the real app with demo data from `bun run --filter @deep/video seed:demo <morning|midday|active|reset>`. **The seed command wipes the database first.**
+
 ## Database
 
 ```bash

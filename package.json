@@ -4,7 +4,8 @@
 	"private": true,
 	"workspaces": [
 		"apps/*",
-		"packages/*"
+		"packages/*",
+		"video"
 	],
 	"scripts": {
 		"dev": "bun run --filter @deep/api --filter @deep/desktop dev:all",
@@ -23,7 +24,9 @@
 		"typecheck": "tsc -p apps/api && tsc -p apps/desktop && tsc -p apps/vscode",
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
-		"format": "biome format --write ."
+		"format": "biome format --write .",
+		"video:studio": "bun run --filter @deep/video studio",
+		"video:render": "bun run --filter @deep/video render"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",

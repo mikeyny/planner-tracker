@@ -1,0 +1,29 @@
+{
+	"name": "@deep/video",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"studio": "remotion studio src/index.ts",
+		"render": "remotion render src/index.ts DeepWalkthrough out/deep-walkthrough.mp4",
+		"voiceover": "bun --env-file=../.env scripts/voiceover.ts",
+		"seed:demo": "bun --env-file=../.env scripts/seed-demo.ts"
+	},
+	"dependencies": {
+		"@deep/db": "workspace:*",
+		"@deep/shared": "workspace:*",
+		"@remotion/cli": "4.0.475",
+		"@remotion/media": "4.0.475",
+		"@remotion/transitions": "4.0.475",
+		"@fontsource-variable/martian-mono": "^5.0.0",
+		"@fontsource-variable/onest": "^5.0.0",
+		"@fontsource-variable/schibsted-grotesk": "^5.0.0",
+		"@google/genai": "^1.0.0",
+		"lucide-react": "^0.500.0",
+		"react": "^19.0.0",
+		"react-dom": "^19.0.0",
+		"remotion": "4.0.475"
+	},
+	"devDependencies": {
+		"@types/react": "^19.0.0"
+	}
+}

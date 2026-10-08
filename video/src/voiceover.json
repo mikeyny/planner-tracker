@@ -1,0 +1,122 @@
+[
+	{
+		"id": "intro",
+		"file": "vo/intro.wav",
+		"seconds": 12.83,
+		"hash": "35526171df0b"
+	},
+	{
+		"id": "loop",
+		"file": "vo/loop.wav",
+		"seconds": 16.807375,
+		"hash": "9e925ba80b97"
+	},
+	{
+		"id": "setup",
+		"file": "vo/setup.wav",
+		"seconds": 17.92,
+		"hash": "2d317317b871"
+	},
+	{
+		"id": "projects",
+		"file": "vo/projects.wav",
+		"seconds": 12.327375,
+		"hash": "37817c9b648f"
+	},
+	{
+		"id": "dump",
+		"file": "vo/dump.wav",
+		"seconds": 16.13,
+		"hash": "d9234e9d5618"
+	},
+	{
+		"id": "review",
+		"file": "vo/review.wav",
+		"seconds": 15.567375,
+		"hash": "05efc4a14b49"
+	},
+	{
+		"id": "plan",
+		"file": "vo/plan.wav",
+		"seconds": 9.67,
+		"hash": "69d6911fba8a"
+	},
+	{
+		"id": "today",
+		"file": "vo/today.wav",
+		"seconds": 13.027375,
+		"hash": "d43afabefef6"
+	},
+	{
+		"id": "start",
+		"file": "vo/start.wav",
+		"seconds": 10.39,
+		"hash": "381c5340bac2"
+	},
+	{
+		"id": "timers",
+		"file": "vo/timers.wav",
+		"seconds": 14.967375,
+		"hash": "b242c5299351"
+	},
+	{
+		"id": "focus",
+		"file": "vo/focus.wav",
+		"seconds": 16.01,
+		"hash": "5a7555d3a3ab"
+	},
+	{
+		"id": "capture",
+		"file": "vo/capture.wav",
+		"seconds": 10.787375,
+		"hash": "17a5fe447c58"
+	},
+	{
+		"id": "end",
+		"file": "vo/end.wav",
+		"seconds": 9.19,
+		"hash": "8bb975f5353c"
+	},
+	{
+		"id": "tracking",
+		"file": "vo/tracking.wav",
+		"seconds": 15.627375,
+		"hash": "6be321e811ef"
+	},
+	{
+		"id": "ai",
+		"file": "vo/ai.wav",
+		"seconds": 13.09,
+		"hash": "d6054b9c88d0"
+	},
+	{
+		"id": "shutdown",
+		"file": "vo/shutdown.wav",
+		"seconds": 12.147375,
+		"hash": "95de9d953faa"
+	},
+	{
+		"id": "stats",
+		"file": "vo/stats.wav",
+		"seconds": 9.39,
+		"hash": "18216d6d0314"
+	},
+	{
+		"id": "science",
+		"file": "vo/science.wav",
+		"seconds": 11.607375,
+		"hash": "6667fb74bafe"
+	},
+	{
+		"id": "keys",
+		"file": "vo/keys.wav",
+		"seconds": 2.12,
+		"hash": "09a785751a2b"
+	},
+	{
+		"id": "outro",
+		"file": "vo/outro.wav",
+		"seconds": 8.007375,
+		"hash": "bdceac577d4a"
+	}
+]
