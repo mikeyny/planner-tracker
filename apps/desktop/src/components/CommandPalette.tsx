@@ -39,6 +39,7 @@ const VIEWS: { v: View; label: string }[] = [
 	{ v: "settings", label: "Settings" },
 	{ v: "startday", label: "Start my day" },
 	{ v: "shutdown", label: "Shutdown" },
+	{ v: "review", label: "Weekly review" },
 ];
 
 export function CommandPalette() {

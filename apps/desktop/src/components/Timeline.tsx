@@ -13,6 +13,7 @@ import { NO_PROJECT_COLOR, useNow } from "../lib/hooks";
 import {
 	type DaySession,
 	queryClient,
+	useCommits,
 	useDay,
 	useSettings,
 } from "../lib/queries";
@@ -289,6 +290,7 @@ export function Timeline({
 					startMin={startMin}
 					projectById={projectById}
 				/>
+				<CommitMarks date={date} startMin={startMin} endMin={endMin} />
 
 				{isToday && nowMin >= startMin && nowMin <= endMin && (
 					<div
@@ -302,9 +304,40 @@ export function Timeline({
 				)}
 			</div>
 			<div className="mt-2 ml-[46px] text-[11px] text-faint">
-				Drag tasks here. Double-click to add a meeting.
+				Drag tasks here. Double-click to add a meeting. The right edge shows
+				actual focus and ◆ your commits.
 			</div>
 		</div>
+	);
+}
+
+/** Your git commits that day, as small dots beside the actual-focus rail. */
+function CommitMarks({
+	date,
+	startMin,
+	endMin,
+}: {
+	date: string;
+	startMin: number;
+	endMin: number;
+}) {
+	const { data: commits = [] } = useCommits(date);
+	return (
+		<>
+			{commits.map((c) => {
+				const d = new Date(c.at);
+				const m = d.getHours() * 60 + d.getMinutes();
+				if (m < startMin || m > endMin) return null;
+				return (
+					<div
+						key={c.hash}
+						title={`${minToHhmm(m)} · ${c.hash} · ${c.subject}`}
+						className="absolute -right-[23px] z-[3] size-[7px] -translate-y-1/2 rotate-45 rounded-[1px] border border-bg"
+						style={{ top: (m - startMin) * PPM, background: c.color }}
+					/>
+				);
+			})}
+		</>
 	);
 }
 

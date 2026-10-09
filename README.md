@@ -88,6 +88,42 @@ Reload VS Code afterwards. The status bar shows the running session; click it fo
 - Editing a different project during a session offers to switch (at most every 30 min per project).
 - No keyboard or mouse input for 10 minutes pauses the session. When you come back you choose keep, count as break, discard, or end (after 20 minutes away).
 
+## Insights (Phase 4)
+
+- **Stats → Week**: focus per day against your daily target, projects against their weekly targets, deep-work share, project switches, when you get pulled away, and a best-focus-hours heatmap from the last 4 weeks (uses the 1–5 rating you give when ending a session).
+- **Weekly review** (sidebar; a dot and a Monday–Wednesday banner when last week isn't reviewed): last week's numbers, three questions, an AI summary (plain summary from your numbers if Gemini is unavailable), and next week's hours per project. Weeks with no tracked focus are skipped.
+- **Timesheets** (Projects → Timesheets, or the file icon on a billable project): preview by week or month, export CSV or a printable PDF. Hours are focused session time; amounts use the project's hourly rate.
+- **Find projects** (Projects): lists repos under your projects folder (Settings; defaults to the folder above this repo) that aren't linked yet, and adds the ones you pick.
+- **Commits on the timeline**: ◆ marks on the right edge of Today's timeline show your own commits (by your global git email) in linked repos.
+- **Slipping tasks**: Start my day flags a task that has been moved twice already and offers Make it smaller.
+
+## Backups
+
+A gzipped `pg_dump` is written to `~/.deep/backups/deep-YYYY-MM-DD.sql.gz` once a day while the API runs (Settings → Backups also has **Back up now**). The newest 14 are kept by default.
+
+Restore one (this replaces the current data):
+
+```bash
+gunzip -c ~/.deep/backups/deep-2026-10-09.sql.gz | docker exec -i deep_postgres psql -U deep -d deep
+```
+
+## Tests
+
+```bash
+bun run test        # unit tests for the insight calculations (no database needed)
+```
+
+End-to-end tests run against a separate `deep_test` database and a second API on port 4050, so they never touch your data. Start the two test servers in their own terminals, then run everything:
+
+```bash
+docker exec deep_postgres createdb -U deep deep_test   # once
+bun run e2e:api     # test API on :4050 (DEEP_TEST=1: no backups, idle watcher or VS Code file)
+bun run e2e:ui      # test front-end on :5181
+bun run e2e         # seeds deep_test, runs API tests, reseeds, runs UI tests in headless Chrome
+```
+
+UI screenshots land in `apps/desktop/e2e/out`. The seed refuses to wipe any database whose name doesn't end in `_test` unless you pass `--yes`.
+
 ## Building an installer
 
 `bun run build:desktop` produces an NSIS installer. It needs roughly 2 GB of free disk for the release build. "Start Deep when Windows starts" only works from the installed build.
@@ -103,7 +139,7 @@ bun run video:render        # render video/out/deep-walkthrough.mp4
 
 - Narration text lives in `video/src/script.ts`; subtitles are generated from it.
 - `bun run --filter @deep/video voiceover` regenerates narration with Gemini TTS (free tier: ~10 requests per model per day). `bun video/scripts/vo-check.ts` checks each clip against the script with local Whisper.
-- Screenshots in `video/public/shots` were taken from the real app with demo data from `bun run --filter @deep/video seed:demo <morning|midday|active|reset>`. **The seed command wipes the database first.**
+- Screenshots in `video/public/shots` were taken from the real app with demo data from `bun run --filter @deep/video seed:demo <morning|midday|active|reset>`. **The seed wipes the database it points at**, so it only runs against a `*_test` database unless you add `--yes`.
 
 ## Database
 

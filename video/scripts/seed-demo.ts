@@ -30,7 +30,18 @@ const daysAgo = (n: number) => {
 };
 const min = (m: number) => m * 60;
 
-await sql`TRUNCATE projects, project_paths, tasks, day_plans, time_blocks, sessions, session_pauses, captures, activity_events, ai_runs, settings RESTART IDENTITY CASCADE`;
+// This wipes the database. Only a *_test database is fair game without asking.
+const dbName = new URL(
+	process.env.DATABASE_URL ?? "postgres://x/deep",
+).pathname.slice(1);
+if (!dbName.endsWith("_test") && !process.argv.includes("--yes")) {
+	console.error(
+		`Refusing to wipe the "${dbName}" database. Point DATABASE_URL at a *_test database, or add --yes if you really mean it.`,
+	);
+	process.exit(1);
+}
+
+await sql`TRUNCATE projects, project_paths, tasks, day_plans, time_blocks, sessions, session_pauses, captures, activity_events, ai_runs, settings, reviews RESTART IDENTITY CASCADE`;
 if (phase === "reset") {
 	console.log("database emptied");
 	process.exit(0);
@@ -117,6 +128,120 @@ for (const [projectId, title, est, actual, ago] of history) {
 		activeSec: min(actual),
 		outcome: "done",
 	});
+}
+
+/*
+ * Four weeks of focus history for the weekly dashboard and heatmap.
+ * Deterministic: mornings are strongest, Friday afternoons weakest.
+ */
+if (phase !== "morning") {
+	let seed = 7;
+	const rand = () => {
+		seed = (seed * 16807) % 2147483647;
+		return seed / 2147483647;
+	};
+	const pool = [
+		{ projectId: smp!.id, title: "Paynow integration", energy: "deep" },
+		{ projectId: cloud!.id, title: "Landing page sections", energy: "deep" },
+		{ projectId: agri!.id, title: "Client emails", energy: "shallow" },
+		{ projectId: admin!.id, title: "Invoices and admin", energy: "admin" },
+	];
+	const poolTasks = await db
+		.insert(tasks)
+		.values(
+			pool.map((p) => ({
+				projectId: p.projectId,
+				title: p.title,
+				energy: p.energy,
+				status: "done",
+				doneAt: at("17:00", daysAgo(1)),
+				sortOrder: order++,
+			})),
+		)
+		.returning();
+	const slots = [
+		{ start: "08:45", min: 50, weight: [0.55, 0.3, 0.1, 0.05], rating: 4.5 },
+		{ start: "09:45", min: 50, weight: [0.5, 0.35, 0.1, 0.05], rating: 4.4 },
+		{ start: "11:00", min: 45, weight: [0.3, 0.4, 0.2, 0.1], rating: 3.8 },
+		{ start: "14:00", min: 40, weight: [0.25, 0.35, 0.3, 0.1], rating: 3.2 },
+		{ start: "15:30", min: 30, weight: [0.15, 0.2, 0.35, 0.3], rating: 2.6 },
+	];
+	const pick = (w: number[]) => {
+		let r = rand();
+		for (let i = 0; i < w.length; i++) {
+			r -= w[i]!;
+			if (r <= 0) return i;
+		}
+		return w.length - 1;
+	};
+	const rows: (typeof sessions.$inferInsert)[] = [];
+	for (let ago = 27; ago >= 1; ago--) {
+		const date = daysAgo(ago);
+		const dow = new Date(`${date}T12:00:00`).getDay();
+		if (dow === 0 || dow === 6) continue;
+		for (const slot of slots) {
+			if (rand() < (dow === 5 && slot.start >= "14:00" ? 0.6 : 0.2)) continue; // skipped block
+			const i = pick(slot.weight);
+			const minutes = Math.round(slot.min * (0.7 + rand() * 0.35));
+			const startedAt = at(slot.start, date);
+			const rating = Math.max(
+				1,
+				Math.min(
+					5,
+					Math.round(
+						slot.rating + (rand() - 0.5) * 1.6 - (dow === 5 ? 0.6 : 0),
+					),
+				),
+			);
+			rows.push({
+				kind: "focus",
+				mode: "deep50",
+				projectId: pool[i]!.projectId,
+				taskId: poolTasks[i]!.id,
+				plannedSec: min(slot.min),
+				startedAt,
+				endedAt: new Date(
+					Date.parse(startedAt) + min(minutes) * 1000,
+				).toISOString(),
+				activeSec: min(minutes),
+				outcome: "progress",
+				focusRating: rating,
+			});
+		}
+	}
+	await db.insert(sessions).values(rows);
+	// Distractions cluster after lunch.
+	const notes = [
+		"WhatsApp",
+		"Email",
+		"WhatsApp",
+		"News",
+		"WhatsApp",
+		"Twitter",
+	];
+	const caps: (typeof captures.$inferInsert)[] = [];
+	for (let ago = 13; ago >= 1; ago--) {
+		const date = daysAgo(ago);
+		const dow = new Date(`${date}T12:00:00`).getDay();
+		if (dow === 0 || dow === 6) continue;
+		const n = 1 + Math.floor(rand() * 3);
+		for (let k = 0; k < n; k++) {
+			const hour =
+				rand() < 0.65
+					? 13 + Math.floor(rand() * 3)
+					: 9 + Math.floor(rand() * 3);
+			caps.push({
+				kind: rand() < 0.8 ? "urge" : "interruption",
+				text: rand() < 0.7 ? notes[Math.floor(rand() * notes.length)]! : "Urge",
+				status: "triaged",
+				createdAt: at(
+					`${String(hour).padStart(2, "0")}:${String(Math.floor(rand() * 60)).padStart(2, "0")}`,
+					date,
+				),
+			});
+		}
+	}
+	await db.insert(captures).values(caps);
 }
 
 /* Inbox and a leftover from yesterday. */

@@ -227,3 +227,53 @@ export async function capture(
 	await api.post("/captures", { text, kind });
 	queryClient.invalidateQueries({ queryKey: ["captures"] });
 }
+
+/* ---------- insights (Phase 4) ---------- */
+
+import type {
+	BackupInfo,
+	Commit,
+	Heatmap,
+	WeeklyReview,
+	WeekStats,
+} from "@deep/shared";
+
+export const useWeekStats = (date: string) =>
+	useQuery({
+		queryKey: ["stats", "week", date],
+		queryFn: () => api.get<WeekStats>(`/stats/week?date=${date}`),
+		refetchInterval: 5 * 60_000,
+	});
+
+export const useHeatmap = (weeks = 4) =>
+	useQuery({
+		queryKey: ["stats", "heatmap", weeks],
+		queryFn: () => api.get<Heatmap>(`/stats/heatmap?weeks=${weeks}`),
+	});
+
+export const useReviewPending = () =>
+	useQuery({
+		queryKey: ["reviews", "pending"],
+		queryFn: () =>
+			api.get<{ start: string; done: boolean }>("/reviews/weekly/pending"),
+		refetchInterval: 30 * 60_000,
+	});
+
+export const useWeeklyReview = (start: string) =>
+	useQuery({
+		queryKey: ["reviews", "weekly", start],
+		queryFn: () => api.get<WeeklyReview>(`/reviews/weekly/${start}`),
+	});
+
+export const useBackups = () =>
+	useQuery({
+		queryKey: ["backups"],
+		queryFn: () => api.get<BackupInfo[]>("/backups"),
+	});
+
+export const useCommits = (date: string) =>
+	useQuery({
+		queryKey: ["day", "commits", date],
+		queryFn: () => api.get<Commit[]>(`/day/${date}/commits`),
+		refetchInterval: 5 * 60_000,
+	});

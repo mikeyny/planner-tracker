@@ -80,3 +80,18 @@ export async function autostart(enable?: boolean): Promise<boolean> {
 	if (enable === false) await a.disable();
 	return a.isEnabled();
 }
+
+/** Ask where to save a file. Returns null if cancelled or outside the desktop app. */
+export async function pickSavePath(
+	defaultName: string,
+	ext: "csv" | "pdf",
+): Promise<string | null> {
+	if (!inTauri) return null;
+	const { save } = await import("@tauri-apps/plugin-dialog");
+	const res = await save({
+		title: "Save timesheet",
+		defaultPath: defaultName,
+		filters: [{ name: ext.toUpperCase(), extensions: [ext] }],
+	});
+	return res ?? null;
+}

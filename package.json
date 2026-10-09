@@ -26,7 +26,12 @@
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
 		"video:studio": "bun run --filter @deep/video studio",
-		"video:render": "bun run --filter @deep/video render"
+		"video:render": "bun run --filter @deep/video render",
+		"test": "bun run --filter @deep/api test",
+		"e2e:reset": "DATABASE_URL=postgres://deep:deep@127.0.0.1:5434/deep_test bun --env-file=.env video/scripts/seed-demo.ts active && DATABASE_URL=postgres://deep:deep@127.0.0.1:5434/deep_test bun --env-file=.env apps/api/scripts/e2e-fixtures.ts",
+		"e2e:api": "DATABASE_URL=postgres://deep:deep@127.0.0.1:5434/deep_test API_PORT=4050 WHISPER_PORT=4051 DEEP_TEST=1 bun --env-file=.env apps/api/src/index.ts",
+		"e2e:ui": "cd apps/desktop && API_PORT=4050 bunx vite --port 5181 --strictPort",
+		"e2e": "bun run e2e:reset && cd apps/api && DEEP_E2E_API=http://127.0.0.1:4050 bun --env-file=../../.env test && cd ../.. && bun run e2e:reset && cd apps/desktop && DEEP_E2E_UI=http://localhost:5181 bun --env-file=../../.env test e2e"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.3.10",

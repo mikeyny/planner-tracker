@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
+import { startBackupJob } from "./lib/backup";
 import { addClient, removeClient } from "./lib/bus";
 import { buildState } from "./lib/state";
 import { startIdleWatcher } from "./lib/watchers";
@@ -15,7 +16,9 @@ import { activityRouter } from "./routes/activity";
 import { aiRouter } from "./routes/ai";
 import { capturesRouter } from "./routes/captures";
 import { dayRouter } from "./routes/day";
+import { exportsRouter } from "./routes/exports";
 import { projectsRouter } from "./routes/projects";
+import { reviewsRouter } from "./routes/reviews";
 import { sessionRouter } from "./routes/session";
 import { settingsRouter } from "./routes/settings";
 import { statsRouter } from "./routes/stats";
@@ -60,6 +63,7 @@ app.use(
 	cors({
 		origin: [
 			"http://localhost:5180",
+			"http://localhost:5181",
 			"http://tauri.localhost",
 			"tauri://localhost",
 		],
@@ -87,6 +91,8 @@ app.route("/api/stats", statsRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/activity", activityRouter);
 app.route("/api/settings", settingsRouter);
+app.route("/api/reviews", reviewsRouter);
+app.route("/api", exportsRouter);
 
 /** Wait for Postgres, starting the Docker container if it's down. */
 async function waitForDatabase() {
@@ -126,8 +132,13 @@ function writeConnectionFile() {
 
 await waitForDatabase();
 await runMigrations();
-writeConnectionFile();
-startIdleWatcher();
+// A test instance (DEEP_TEST=1, its own database and port) must not touch the
+// real connection file, pause real sessions, or write backups.
+if (!process.env.DEEP_TEST) {
+	writeConnectionFile();
+	startIdleWatcher();
+	startBackupJob();
+}
 
 Bun.serve({
 	hostname: "127.0.0.1",

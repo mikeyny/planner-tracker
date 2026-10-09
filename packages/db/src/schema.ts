@@ -193,3 +193,19 @@ export const settings = pgTable("settings", {
 	key: text("key").primaryKey(),
 	value: jsonb("value").notNull(),
 });
+
+/** Daily or weekly review answers and the AI summary. One row per period. */
+export const reviews = pgTable(
+	"reviews",
+	{
+		id: serial("id").primaryKey(),
+		kind: text("kind").notNull(),
+		/** First day of the period (the Monday for weekly reviews). */
+		periodStart: date("period_start", { mode: "string" }).notNull(),
+		data: jsonb("data").notNull().default({}),
+		aiSummary: text("ai_summary"),
+		completedAt: ts("completed_at"),
+		createdAt: ts("created_at").notNull().defaultNow(),
+	},
+	(t) => [uniqueIndex("reviews_kind_period_idx").on(t.kind, t.periodStart)],
+);

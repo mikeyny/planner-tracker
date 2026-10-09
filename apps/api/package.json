@@ -7,7 +7,8 @@
 		"dev": "bun --env-file=../../.env --watch src/index.ts",
 		"start": "bun --env-file=../../.env src/index.ts",
 		"whisper:test": "bun --env-file=../../.env scripts/whisper-test.ts",
-		"dev:all": "bun --env-file=../../.env --watch src/index.ts"
+		"dev:all": "bun --env-file=../../.env --watch src/index.ts",
+		"test": "bun --env-file=../../.env test"
 	},
 	"dependencies": {
 		"@deep/db": "workspace:*",
@@ -16,6 +17,10 @@
 		"@hono/zod-validator": "^0.7.6",
 		"drizzle-orm": "^0.45.1",
 		"hono": "^4.11.3",
+		"pdfkit": "^0.17",
 		"zod": "^4.0.0"
+	},
+	"devDependencies": {
+		"@types/pdfkit": "^0.17.6"
 	}
 }

@@ -1,9 +1,27 @@
-import { type Settings, TIMER_MODE_ORDER, TIMER_MODES } from "@deep/shared";
-import { CheckCircle2, CircleAlert } from "lucide-react";
+import {
+	type BackupInfo,
+	type Settings,
+	TIMER_MODE_ORDER,
+	TIMER_MODES,
+} from "@deep/shared";
+import {
+	CheckCircle2,
+	CircleAlert,
+	DatabaseBackup,
+	Loader2,
+} from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { Segmented } from "../components/ui";
-import { useAiStatus, useSettings, useUpdateSettings } from "../lib/queries";
+import { Button, Segmented } from "../components/ui";
+import { api } from "../lib/api";
+import {
+	queryClient,
+	useAiStatus,
+	useBackups,
+	useSettings,
+	useUpdateSettings,
+} from "../lib/queries";
 import { autostart, inTauri } from "../lib/tauri";
+import { attempt, toast } from "../lib/ui";
 
 export function SettingsView() {
 	const { data: s } = useSettings();
@@ -169,9 +187,12 @@ export function SettingsView() {
 						ok={ai?.whisper !== "missing"}
 						text={
 							ai
-								? ai.whisper === "missing"
-									? "Not installed"
-									: ai.whisper
+								? {
+										missing: "Not installed",
+										stopped: "Ready, loads when you talk",
+										starting: "Loading the model…",
+										ready: "Loaded",
+									}[ai.whisper]
 								: "…"
 						}
 					/>
@@ -201,6 +222,24 @@ export function SettingsView() {
 				</Row>
 			</Group>
 
+			<Group title="Projects">
+				<Row
+					label="Projects folder"
+					hint="Find projects looks for repos here (two levels deep). Empty = the folder above this repo."
+				>
+					<TextInput
+						value={s.projectsRoot}
+						placeholder="C:\Users\you\dev"
+						onChange={(v) => set("projectsRoot", v)}
+					/>
+				</Row>
+			</Group>
+
+			<BackupsGroup
+				keep={s.backupsKeep}
+				onKeep={(n) => set("backupsKeep", n)}
+			/>
+
 			{inTauri && (
 				<Group title="App">
 					<Row
@@ -222,6 +261,79 @@ export function SettingsView() {
 				</Group>
 			)}
 		</div>
+	);
+}
+
+function BackupsGroup({
+	keep,
+	onKeep,
+}: {
+	keep: number;
+	onKeep: (n: number) => void;
+}) {
+	const { data: backups = [] } = useBackups();
+	const [busy, setBusy] = useState(false);
+	const latest = backups[0];
+	const folder = latest
+		? latest.path.slice(0, latest.path.length - latest.file.length - 1)
+		: "~/.deep/backups";
+	const runNow = async () => {
+		setBusy(true);
+		const b = await attempt(() => api.post<BackupInfo>("/backups"));
+		setBusy(false);
+		if (b) {
+			queryClient.invalidateQueries({ queryKey: ["backups"] });
+			toast(`Backed up to ${b.file}`);
+		}
+	};
+	return (
+		<Group title="Backups">
+			<Row
+				label="Daily database backup"
+				hint={
+					latest
+						? `Last: ${new Date(latest.createdAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })} · ${Math.max(1, Math.round(latest.bytes / 1024))} KB`
+						: "None yet. One is made automatically each day while Deep runs."
+				}
+			>
+				<Button size="sm" onClick={runNow} disabled={busy}>
+					{busy ? (
+						<Loader2 size={13} className="animate-spin" />
+					) : (
+						<DatabaseBackup size={13} />
+					)}{" "}
+					Back up now
+				</Button>
+			</Row>
+			<Row label="Keep" hint={folder}>
+				<NumberInput value={keep} min={1} suffix="backups" onChange={onKeep} />
+			</Row>
+		</Group>
+	);
+}
+
+function TextInput({
+	value,
+	onChange,
+	placeholder,
+}: {
+	value: string;
+	onChange: (v: string) => void;
+	placeholder?: string;
+}) {
+	const [v, setV] = useState(value);
+	useEffect(() => setV(value), [value]);
+	return (
+		<input
+			value={v}
+			placeholder={placeholder}
+			onChange={(e) => setV(e.target.value)}
+			onBlur={() => v !== value && onChange(v.trim())}
+			onKeyDown={(e) =>
+				e.key === "Enter" && (e.target as HTMLInputElement).blur()
+			}
+			className="h-8 w-72 rounded-lg border border-line bg-bg px-2 font-mono text-[12px] text-fg placeholder:text-faint"
+		/>
 	);
 }
 

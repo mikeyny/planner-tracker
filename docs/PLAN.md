@@ -4,7 +4,7 @@
 
 ## Status (8 Oct 2026)
 
-**Phases 0–3 are built.** See the [README](../README.md) for how to run it.
+**Phases 0–4 are built** (Phase 4 on 9 Oct 2026). See the [README](../README.md) for how to run and test it.
 
 Decisions taken:
 - **Desktop app from day one** with Tauri 2 (tray, global quick-capture hotkey, always-on-top mini timer), not a Chrome PWA.
@@ -13,7 +13,7 @@ Decisions taken:
 - VS Code asks before starting a session (auto-start is a setting).
 - Daily deep-work target defaults to 3h30.
 
-Next up is Phase 4 (insights): weekly dashboard, best-hours heatmap, weekly review, client timesheets, backups.
+Next up is Phase 5: installer and launch at login, active-window tracking, site blocking, Google Calendar, voice coach.
 
 ---
 

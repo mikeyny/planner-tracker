@@ -31,6 +31,8 @@ const settingsInput = z
 		sound: z.enum(["off", "brown", "pink", "rain"]),
 		soundVolume: z.number().min(0).max(1),
 		speechLanguage: z.string().min(2).max(8),
+		projectsRoot: z.string().max(500),
+		backupsKeep: z.number().int().min(1).max(365),
 	})
 	.partial();
 

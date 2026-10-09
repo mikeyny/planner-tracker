@@ -7,7 +7,8 @@ export type View =
 	| "stats"
 	| "settings"
 	| "startday"
-	| "shutdown";
+	| "shutdown"
+	| "review";
 
 export interface StartTarget {
 	taskId?: number | null;
@@ -26,8 +27,19 @@ interface UiState {
 	composerFocus: number;
 }
 
+/** ?view=stats opens that view (handy for tests); otherwise the last view used. */
+function initialView(): View {
+	const fromUrl = new URLSearchParams(location.search).get("view");
+	if (fromUrl) return fromUrl as View;
+	try {
+		return (localStorage.getItem("deep.view") as View) || "today";
+	} catch {
+		return "today";
+	}
+}
+
 let state: UiState = {
-	view: (localStorage.getItem("deep.view") as View) || "today",
+	view: initialView(),
 	focusOpen: false,
 	startDialog: null,
 	endDialog: false,
@@ -40,7 +52,7 @@ const listeners = new Set<() => void>();
 
 export function setUi(patch: Partial<UiState>) {
 	state = { ...state, ...patch };
-	if (patch.view && patch.view !== "startday" && patch.view !== "shutdown") {
+	if (patch.view && !["startday", "shutdown", "review"].includes(patch.view)) {
 		try {
 			localStorage.setItem("deep.view", patch.view);
 		} catch {

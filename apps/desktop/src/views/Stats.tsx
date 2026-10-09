@@ -1,5 +1,11 @@
 import { formatMinutes } from "@deep/shared";
-import { EmptyState, ProjectDot, SectionLabel } from "../components/ui";
+import { useState } from "react";
+import {
+	EmptyState,
+	ProjectDot,
+	SectionLabel,
+	Segmented,
+} from "../components/ui";
 import {
 	useCaptures,
 	useDay,
@@ -8,8 +14,54 @@ import {
 	useProjects,
 	useToday,
 } from "../lib/queries";
+import { WeekView } from "./Week";
+
+type Tab = "today" | "week";
 
 export function StatsView() {
+	const [tab, setTabState] = useState<Tab>(() => {
+		const fromUrl = new URLSearchParams(location.search).get("tab");
+		if (fromUrl === "week" || fromUrl === "today") return fromUrl;
+		try {
+			return (localStorage.getItem("deep.statsTab") as Tab) || "today";
+		} catch {
+			return "today";
+		}
+	});
+	const setTab = (t: Tab) => {
+		setTabState(t);
+		try {
+			localStorage.setItem("deep.statsTab", t);
+		} catch {
+			// not persisted; fine
+		}
+	};
+	return (
+		<div className="mx-auto flex h-full min-h-0 max-w-[1000px] flex-col gap-6 overflow-y-auto pb-10">
+			<header className="flex flex-wrap items-end justify-between gap-3">
+				<div>
+					<h1 className="font-display text-[28px] font-extrabold tracking-[-0.02em]">
+						{tab === "today" ? "Today in numbers" : "Your week"}
+					</h1>
+					<p className="mt-1 text-[13px] text-muted">
+						Data, not judgement. Patterns show up after a week or two.
+					</p>
+				</div>
+				<Segmented
+					value={tab}
+					onChange={setTab}
+					options={[
+						{ value: "today", label: "Today" },
+						{ value: "week", label: "Week" },
+					]}
+				/>
+			</header>
+			{tab === "today" ? <TodayStats /> : <WeekView />}
+		</div>
+	);
+}
+
+function TodayStats() {
 	const today = useToday();
 	const { data: stats } = useDayStats(today);
 	const { data: mult } = useMultipliers();
@@ -30,16 +82,7 @@ export function StatsView() {
 	const maxSec = Math.max(1, ...stats.perProject.map((p) => p.sec));
 
 	return (
-		<div className="mx-auto flex h-full min-h-0 max-w-[980px] flex-col gap-6 overflow-y-auto pb-10">
-			<header>
-				<h1 className="font-display text-[28px] font-extrabold tracking-[-0.02em]">
-					Today in numbers
-				</h1>
-				<p className="mt-1 text-[13px] text-muted">
-					Data, not judgement. Patterns show up after a week or two.
-				</p>
-			</header>
-
+		<div className="flex flex-col gap-6">
 			<div className="grid grid-cols-4 gap-3">
 				<Tile
 					label="Focused"

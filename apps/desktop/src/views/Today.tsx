@@ -12,6 +12,7 @@ import {
 	useDay,
 	useDayStats,
 	useProjects,
+	useReviewPending,
 	useSettings,
 	useTasks,
 	useToday,
@@ -27,6 +28,10 @@ export function TodayView() {
 	const { data: settings } = useSettings();
 	const [splitting, setSplitting] = useState<Task | null>(null);
 	const now = useNow(60_000);
+	const { data: pending } = useReviewPending();
+	// Nudge on Monday–Wednesday only; later in the week it's just a sidebar dot.
+	const reviewDue =
+		!!pending && !pending.done && [1, 2, 3].includes(new Date(now).getDay());
 
 	const projectById = useMemo(
 		() => new Map(projects.map((p) => [p.id, p])),
@@ -87,6 +92,20 @@ export function TodayView() {
 				</header>
 
 				<DeepRing date={today} />
+
+				{reviewDue && (
+					<button
+						type="button"
+						onClick={() => setUi({ view: "review" })}
+						className="flex items-center justify-between rounded-[11px] border border-[#5c3346] bg-[#2c1f26] px-3.5 py-2.5 text-left text-[12.5px] text-[#f3c4d4] hover:brightness-110 cursor-pointer"
+					>
+						<span>
+							New week. Take 10 minutes to review last week and set this week's
+							project budgets.
+						</span>
+						<span className="text-fg">Weekly review →</span>
+					</button>
+				)}
 
 				{overdue.length > 0 && (
 					<button

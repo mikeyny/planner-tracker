@@ -2,6 +2,7 @@ import { formatClock } from "@deep/shared";
 import {
 	BarChart3,
 	CalendarCheck,
+	CalendarRange,
 	FolderKanban,
 	Inbox,
 	Pause,
@@ -22,11 +23,12 @@ import { SessionEffects } from "./components/SessionEffects";
 import { cx, Kbd } from "./components/ui";
 import { NO_PROJECT_COLOR, useTimer } from "./lib/hooks";
 import { useConnected, useLiveState } from "./lib/live";
-import { session, useTasks, useToday } from "./lib/queries";
+import { session, useReviewPending, useTasks, useToday } from "./lib/queries";
 import { attempt, getUi, isTyping, setUi, useUi, type View } from "./lib/ui";
 import { FocusView } from "./views/Focus";
 import { InboxView } from "./views/Inbox";
 import { ProjectsView } from "./views/Projects";
+import { ReviewView } from "./views/Review";
 import { SettingsView } from "./views/Settings";
 import { ShutdownView } from "./views/Shutdown";
 import { StartDayView } from "./views/StartDay";
@@ -121,6 +123,7 @@ export function App() {
 					{view === "settings" && <SettingsView />}
 					{view === "startday" && <StartDayView />}
 					{view === "shutdown" && <ShutdownView />}
+					{view === "review" && <ReviewView />}
 				</div>
 				{showFocus && (
 					<div className="h-full pb-6">
@@ -211,11 +214,37 @@ function Sidebar({ view }: { view: View }) {
 			>
 				<Sunrise size={17} /> Start my day
 			</button>
+			<ReviewLink view={view} />
 
 			<div className="mt-auto">
 				<LiveCard key={today} />
 			</div>
 		</aside>
+	);
+}
+
+/** "Weekly review", with a dot while last week hasn't been reviewed. */
+function ReviewLink({ view }: { view: View }) {
+	const { data: pending } = useReviewPending();
+	return (
+		<button
+			type="button"
+			onClick={() => setUi({ view: "review", focusOpen: false })}
+			className={cx(
+				"flex h-9 items-center gap-3 rounded-[10px] px-2.5 text-[13.5px] font-medium transition-colors cursor-pointer",
+				view === "review"
+					? "bg-raised text-fg"
+					: "text-muted hover:bg-raised/60 hover:text-fg",
+			)}
+		>
+			<CalendarRange size={17} /> Weekly review
+			{pending && !pending.done && (
+				<span
+					className="ml-auto size-2 rounded-full bg-rose"
+					title="Last week isn't reviewed yet"
+				/>
+			)}
+		</button>
 	);
 }
 

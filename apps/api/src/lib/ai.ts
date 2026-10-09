@@ -40,16 +40,18 @@ async function generateJson<T>(
 ): Promise<T> {
 	const started = Date.now();
 	try {
-		const res = await ai().models.generateContent({
-			model: MODEL,
-			contents: prompt,
-			config: {
-				responseMimeType: "application/json",
-				responseSchema: schema,
-				temperature: 0.3,
-				thinkingConfig: thinkingConfig(),
-			},
-		});
+		const res = await withRetry(() =>
+			ai().models.generateContent({
+				model: MODEL,
+				contents: prompt,
+				config: {
+					responseMimeType: "application/json",
+					responseSchema: schema,
+					temperature: 0.3,
+					thinkingConfig: thinkingConfig(),
+				},
+			}),
+		);
 		const text = res.text?.trim();
 		if (!text) throw new AiError("Gemini returned an empty response.");
 		const parsed = JSON.parse(text) as T;
@@ -61,6 +63,22 @@ async function generateJson<T>(
 		throw err instanceof AiError
 			? err
 			: new AiError(`Gemini request failed: ${msg}`);
+	}
+}
+
+/** "High demand" and rate-limit errors are usually gone a second later. */
+const TRANSIENT =
+	/(503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand)/i;
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
+	for (let i = 1; ; i++) {
+		try {
+			return await fn();
+		} catch (err) {
+			const msg = err instanceof Error ? err.message : String(err);
+			if (i >= attempts || !TRANSIENT.test(msg)) throw err;
+			await Bun.sleep(1200 * i);
+		}
 	}
 }
 
@@ -398,4 +416,31 @@ ${facts}`;
 		},
 	);
 	return res.summary.trim();
+}
+
+/* ---------------- weekly review ---------------- */
+
+export interface WeekSummary {
+	summary: string;
+	/** Suggested focus for next week, one short sentence. */
+	nextFocus: string;
+}
+
+export async function summarizeWeek(facts: string): Promise<WeekSummary> {
+	const prompt = `Write a short weekly review for the person below, in second person.
+summary: 3–4 sentences. Be specific with the numbers given, kind and never guilt-tripping.
+Name one win, one pattern (when they focus best, what pulls them away, or how estimates compared),
+and one concrete experiment for next week. No bullet points, no emoji.
+nextFocus: one short sentence naming what next week should prioritise.
+
+${facts}`;
+	const res = await generateJson<WeekSummary>("weekly_review", prompt, {
+		type: Type.OBJECT,
+		properties: {
+			summary: { type: Type.STRING },
+			nextFocus: { type: Type.STRING },
+		},
+		required: ["summary", "nextFocus"],
+	});
+	return { summary: res.summary.trim(), nextFocus: res.nextFocus.trim() };
 }

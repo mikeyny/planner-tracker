@@ -8,11 +8,13 @@ import {
 	ArrowLeft,
 	CalendarClock,
 	Loader2,
+	Scissors,
 	Sparkles,
 	Star,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CapacityBanner } from "../components/Capacity";
+import { SplitDialog } from "../components/SplitDialog";
 import { TaskRow } from "../components/TaskRow";
 import { Timeline } from "../components/Timeline";
 import {
@@ -141,6 +143,7 @@ function Leftovers({
 	onNext: () => void;
 }) {
 	const { data: projects = [] } = useProjects();
+	const [splitting, setSplitting] = useState<Task | null>(null);
 	const move = async (ids: number[], action: "today" | "inbox" | "drop") => {
 		await attempt(() =>
 			api.post("/tasks/rollover", { date: today, ids, action }),
@@ -149,6 +152,7 @@ function Leftovers({
 	};
 	return (
 		<div className="mx-auto flex max-w-[760px] flex-col gap-4">
+			<SplitDialog task={splitting} onClose={() => setSplitting(null)} />
 			<div>
 				<h2 className="font-display text-[19px] font-bold">
 					Unfinished from earlier
@@ -163,33 +167,47 @@ function Leftovers({
 			) : (
 				<div className="flex flex-col gap-2">
 					{tasks.map((t) => (
-						<div key={t.id} className="flex items-center gap-3">
-							<div className="min-w-0 flex-1">
-								<TaskRow
-									task={t}
-									project={projects.find((p) => p.id === t.projectId)}
-									draggable={false}
-								/>
+						<div key={t.id} className="flex flex-col gap-1.5">
+							<div className="flex items-center gap-3">
+								<div className="min-w-0 flex-1">
+									<TaskRow
+										task={t}
+										project={projects.find((p) => p.id === t.projectId)}
+										draggable={false}
+									/>
+								</div>
+								<div className="flex gap-1">
+									<Button size="sm" onClick={() => move([t.id], "today")}>
+										Today
+									</Button>
+									<Button
+										size="sm"
+										tone="quiet"
+										onClick={() => move([t.id], "inbox")}
+									>
+										Inbox
+									</Button>
+									<Button
+										size="sm"
+										tone="quiet"
+										onClick={() => move([t.id], "drop")}
+									>
+										Drop
+									</Button>
+								</div>
 							</div>
-							<div className="flex gap-1">
-								<Button size="sm" onClick={() => move([t.id], "today")}>
-									Today
-								</Button>
-								<Button
-									size="sm"
-									tone="quiet"
-									onClick={() => move([t.id], "inbox")}
-								>
-									Inbox
-								</Button>
-								<Button
-									size="sm"
-									tone="quiet"
-									onClick={() => move([t.id], "drop")}
-								>
-									Drop
-								</Button>
-							</div>
+							{t.rolloverCount >= 2 && (
+								<div className="flex items-center justify-between gap-3 rounded-[10px] border border-[#4a3c15] bg-warn-bg px-3 py-2 text-[12.5px] text-[#f7dc9a]">
+									<span>
+										Moved {t.rolloverCount} times already. Tasks that keep
+										slipping are usually too big or too vague: make it smaller,
+										hand it off, or let it go.
+									</span>
+									<Button size="sm" onClick={() => setSplitting(t)}>
+										<Scissors size={13} /> Make it smaller
+									</Button>
+								</div>
+							)}
 						</div>
 					))}
 				</div>

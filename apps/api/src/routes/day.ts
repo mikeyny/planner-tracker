@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { geminiAvailable, summarizeDay } from "../lib/ai";
 import { changed } from "../lib/bus";
+import { commitsOn } from "../lib/git";
 import { capacity, dayStats, multipliers, sessionsForDay } from "../lib/stats";
 
 const dateStr = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -121,6 +122,10 @@ export const dayRouter = new Hono()
 			changed("day");
 			return c.json({ ok: true }, 201);
 		},
+	)
+	/** Your git commits that day across linked repos. */
+	.get("/:date/commits", async (c) =>
+		c.json(await commitsOn(dateStr.parse(c.req.param("date")))),
 	)
 	.get("/:date/capacity", async (c) => {
 		return c.json(await capacity(dateStr.parse(c.req.param("date"))));

@@ -24,6 +24,10 @@ export interface Settings {
 	soundVolume: number;
 	/** Whisper language code, or "auto". */
 	speechLanguage: string;
+	/** Folder scanned by "Find projects" for repos. */
+	projectsRoot: string;
+	/** Keep this many daily database backups. */
+	backupsKeep: number;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -43,4 +47,6 @@ export const DEFAULT_SETTINGS: Settings = {
 	sound: "off",
 	soundVolume: 0.35,
 	speechLanguage: "en",
+	projectsRoot: "",
+	backupsKeep: 14,
 };

@@ -9,3 +9,4 @@ apps/vscode/*.vsix
 .DS_Store
 video/out
 video/public/vo/*.raw
+apps/desktop/e2e/out

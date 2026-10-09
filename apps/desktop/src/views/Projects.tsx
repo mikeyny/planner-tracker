@@ -1,6 +1,16 @@
 import { formatMinutes, type Project } from "@deep/shared";
-import { Archive, FolderOpen, Pencil, Play, Plus, X } from "lucide-react";
+import {
+	Archive,
+	FileText,
+	FolderOpen,
+	FolderSearch,
+	Pencil,
+	Play,
+	Plus,
+	X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { DiscoverDialog, TimesheetDialog } from "../components/ProjectTools";
 import {
 	Button,
 	cx,
@@ -20,10 +30,16 @@ export function ProjectsView() {
 	const { data: projects = [] } = useProjects();
 	const { data: open = [] } = useTasks("open");
 	const [editing, setEditing] = useState<Project | "new" | null>(null);
+	const [finding, setFinding] = useState(false);
+	// undefined = closed, null = all billable projects
+	const [sheetFor, setSheetFor] = useState<Project | null | undefined>(
+		undefined,
+	);
+	const anyBillable = projects.some((p) => p.billable);
 
 	return (
 		<div className="mx-auto flex h-full min-h-0 max-w-[980px] flex-col gap-5 overflow-y-auto pb-10">
-			<header className="flex items-end justify-between">
+			<header className="flex flex-wrap items-end justify-between gap-3">
 				<div>
 					<h1 className="font-display text-[28px] font-extrabold tracking-[-0.02em]">
 						Projects
@@ -33,9 +49,19 @@ export function ProjectsView() {
 						the right place.
 					</p>
 				</div>
-				<Button tone="primary" onClick={() => setEditing("new")}>
-					<Plus size={15} /> New project
-				</Button>
+				<div className="flex gap-2">
+					{anyBillable && (
+						<Button onClick={() => setSheetFor(null)}>
+							<FileText size={15} /> Timesheets
+						</Button>
+					)}
+					<Button onClick={() => setFinding(true)}>
+						<FolderSearch size={15} /> Find projects
+					</Button>
+					<Button tone="primary" onClick={() => setEditing("new")}>
+						<Plus size={15} /> New project
+					</Button>
+				</div>
 			</header>
 
 			{projects.length === 0 && (
@@ -67,6 +93,14 @@ export function ProjectsView() {
 									>
 										<Play size={14} className="fill-current" />
 									</IconButton>
+									{p.billable && (
+										<IconButton
+											label="Timesheet"
+											onClick={() => setSheetFor(p)}
+										>
+											<FileText size={14} />
+										</IconButton>
+									)}
 									<IconButton label="Edit" onClick={() => setEditing(p)}>
 										<Pencil size={14} />
 									</IconButton>
@@ -111,6 +145,12 @@ export function ProjectsView() {
 				open={editing !== null}
 				onClose={() => setEditing(null)}
 				usedColors={projects.map((p) => p.color)}
+			/>
+			<DiscoverDialog open={finding} onClose={() => setFinding(false)} />
+			<TimesheetDialog
+				open={sheetFor !== undefined}
+				project={sheetFor ?? null}
+				onClose={() => setSheetFor(undefined)}
 			/>
 		</div>
 	);

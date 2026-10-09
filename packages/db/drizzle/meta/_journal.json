@@ -8,6 +8,13 @@
       "when": 1791450117901,
       "tag": "0000_bright_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1791536997695,
+      "tag": "0001_youthful_hex",
+      "breakpoints": true
     }
   ]
 }
