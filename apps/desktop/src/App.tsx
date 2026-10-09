@@ -21,7 +21,7 @@ import {
 import { SessionEffects } from "./components/SessionEffects";
 import { cx, Kbd } from "./components/ui";
 import { NO_PROJECT_COLOR, useTimer } from "./lib/hooks";
-import { useConnected } from "./lib/live";
+import { useConnected, useLiveState } from "./lib/live";
 import { session, useTasks, useToday } from "./lib/queries";
 import { attempt, getUi, isTyping, setUi, useUi, type View } from "./lib/ui";
 import { FocusView } from "./views/Focus";
@@ -56,7 +56,8 @@ export function App() {
 	const focusOpen = useUi((s) => s.focusOpen);
 	const toast = useUi((s) => s.toast);
 	const connected = useConnected();
-	const { session: s } = useTimer();
+	// Live state, not useTimer: the timer ticks every second and would re-render every screen.
+	const s = useLiveState()?.session ?? null;
 
 	useEffect(() => {
 		const onKey = (e: KeyboardEvent) => {

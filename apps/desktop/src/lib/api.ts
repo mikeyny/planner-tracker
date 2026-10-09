@@ -33,7 +33,10 @@ async function request<T>(
 		});
 	} catch (err) {
 		if (err instanceof DOMException && err.name === "TimeoutError")
-			throw new ApiError("The local API took too long to answer. Try again.", 0);
+			throw new ApiError(
+				"The local API took too long to answer. Try again.",
+				0,
+			);
 		throw new ApiError(
 			"Can't reach the local API. It may still be starting.",
 			0,

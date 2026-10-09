@@ -1,6 +1,6 @@
 import { formatMinutes, type Project } from "@deep/shared";
 import { Archive, FolderOpen, Pencil, Play, Plus, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
 	Button,
 	cx,
@@ -136,8 +136,17 @@ function ProjectDialog({
 	const [rate, setRate] = useState("");
 	const [target, setTarget] = useState("");
 
+	// Fill the form once when the dialog opens (or switches project). Reading the
+	// latest props through a ref keeps parent re-renders and refetches, which create
+	// new `project`/`usedColors` objects, from wiping what you're typing.
+	const latest = useRef({ project, usedColors });
+	latest.current = { project, usedColors };
+	const projectId = project?.id ?? null;
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run only when the dialog opens or targets another project
 	useEffect(() => {
 		if (!open) return;
+		const { project, usedColors } = latest.current;
 		setName(project?.name ?? "");
 		setColor(
 			project?.color ??
@@ -152,7 +161,7 @@ function ProjectDialog({
 		setTarget(
 			project?.weeklyTargetMin ? String(project.weeklyTargetMin / 60) : "",
 		);
-	}, [open, project, usedColors]);
+	}, [open, projectId]);
 
 	const addPath = (p: string) => {
 		const v = p.trim();
