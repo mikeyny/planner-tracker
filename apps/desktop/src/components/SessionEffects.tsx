@@ -3,10 +3,10 @@ import { useEffect, useRef } from "react";
 import { api } from "../lib/api";
 import { useTimer } from "../lib/hooks";
 import { onServerEvent } from "../lib/live";
-import { session, useSettings } from "../lib/queries";
+import { session, useNextMeeting, useSettings } from "../lib/queries";
 import { chime, setAmbient, stopAmbient } from "../lib/sound";
 import { desktop, notify, onTauriEvent } from "../lib/tauri";
-import { attempt, setUi } from "../lib/ui";
+import { attempt, setUi, toast } from "../lib/ui";
 
 /** Side effects of the running session: bells, notifications, tray text, mini timer, sound. */
 export function SessionEffects() {
@@ -106,6 +106,38 @@ export function SessionEffects() {
 			}),
 		[],
 	);
+
+	// Drifted to a distraction during focus: a gentle nudge, never a block.
+	useEffect(
+		() =>
+			onServerEvent((e) => {
+				if (e.type !== "drift") return;
+				const where = e.drift.project?.name ?? "your session";
+				toast(`Still on ${e.drift.label}? You're focusing on ${where}.`);
+				if (settings?.notifications)
+					notify(
+						`Still on ${e.drift.label}?`,
+						`You're focusing on ${where}. Park the thought (Ctrl+Shift+Space) and head back.`,
+					);
+			}),
+		[settings?.notifications],
+	);
+
+	// Heads-up five minutes before a meeting.
+	const { data: nextMeeting } = useNextMeeting();
+	const warnedMeeting = useRef("");
+	useEffect(() => {
+		if (!nextMeeting || !settings?.notifications) return;
+		const key = `${localDate()}-${nextMeeting.startMin}-${nextMeeting.title}`;
+		if (nextMeeting.inMin > 5 || warnedMeeting.current === key) return;
+		warnedMeeting.current = key;
+		notify(
+			`${nextMeeting.title} at ${nextMeeting.at}`,
+			s?.kind === "focus"
+				? "Wrap up: write where you left off so it's easy to come back."
+				: "Starts in a few minutes.",
+		);
+	}, [nextMeeting, settings?.notifications, s?.kind]);
 
 	// Shutdown reminder, once a day.
 	useEffect(() => {

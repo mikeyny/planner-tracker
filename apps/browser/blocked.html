@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Focus time</title>
+		<link rel="stylesheet" href="style.css" />
+		<style>
+			main {
+				min-height: 100vh;
+				display: grid;
+				place-items: center;
+				padding: 24px;
+			}
+			.card {
+				width: min(520px, 100%);
+				text-align: center;
+			}
+			h1 {
+				font-size: 30px;
+				line-height: 1.2;
+				font-weight: 650;
+				margin: 18px 0 10px;
+				letter-spacing: -0.01em;
+			}
+			.site {
+				font-family: ui-monospace, "Cascadia Mono", monospace;
+				font-size: 13px;
+				color: var(--muted);
+				border: 1px solid var(--line);
+				border-radius: 999px;
+				padding: 4px 12px;
+				display: inline-block;
+			}
+			.row {
+				display: flex;
+				gap: 10px;
+				justify-content: center;
+				margin-top: 28px;
+				flex-wrap: wrap;
+			}
+			#why {
+				margin-top: 26px;
+				text-align: left;
+				display: none;
+			}
+			#why label {
+				display: block;
+				font-size: 13px;
+				color: var(--muted);
+				margin-bottom: 8px;
+			}
+			.hint {
+				margin-top: 34px;
+				font-size: 13px;
+			}
+		</style>
+	</head>
+	<body>
+		<main>
+			<div class="card">
+				<span class="site" id="site">site</span>
+				<h1 id="title">This can wait.</h1>
+				<p class="muted" id="sub">You're in a focus session.</p>
+				<div class="row" id="actions">
+					<button type="button" class="primary" id="back">Back to work</button>
+					<button type="button" id="need">I need it for this task</button>
+				</div>
+				<div id="why">
+					<label for="reason">What do you need it for? It's saved with your distraction log.</label>
+					<textarea id="reason" rows="2" maxlength="200" placeholder="e.g. the Stripe webhook tutorial"></textarea>
+					<div class="row">
+						<button type="button" id="cancel">Never mind</button>
+						<button type="button" class="primary" id="open" disabled>Open for 5 minutes</button>
+					</div>
+				</div>
+				<p class="hint muted" id="hint">The urge usually passes in a minute. Park the thought in Deep (Ctrl+Shift+Space) and keep going.</p>
+			</div>
+		</main>
+		<script src="blocked.js"></script>
+	</body>
+</html>

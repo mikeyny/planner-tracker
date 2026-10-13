@@ -26,7 +26,7 @@ export function geminiModel() {
 }
 
 let client: GoogleGenAI | null = null;
-function ai() {
+export function ai() {
 	if (!process.env.GEMINI_API_KEY) throw new AiError("No Gemini API key set.");
 	client ??= new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 	return client;
@@ -68,7 +68,7 @@ async function generateJson<T>(
 
 /** "High demand" and rate-limit errors are usually gone a second later. */
 const TRANSIENT =
-	/(503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand)/i;
+	/(503|429|UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand)/i;
 
 async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 	for (let i = 1; ; i++) {
@@ -82,17 +82,18 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
 	}
 }
 
-async function logRun(
+export async function logRun(
 	feature: string,
 	started: number,
 	ok: boolean,
 	error: string | null,
 	usage?: { promptTokenCount?: number; candidatesTokenCount?: number },
+	model = MODEL,
 ) {
 	try {
 		await db.insert(aiRuns).values({
 			feature,
-			model: MODEL,
+			model,
 			ok,
 			error,
 			ms: Date.now() - started,

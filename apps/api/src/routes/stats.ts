@@ -2,10 +2,15 @@ import { localDate } from "@deep/shared";
 import { Hono } from "hono";
 import { heatmapFor, weekStatsFor } from "../lib/insights";
 import { dayStats, multipliers } from "../lib/stats";
+import { usageFor } from "../lib/usage";
 
 export const statsRouter = new Hono()
 	.get("/day", async (c) =>
 		c.json(await dayStats(c.req.query("date") ?? localDate())),
+	)
+	/** Apps and sites from the window tracker for ?date=. */
+	.get("/apps", async (c) =>
+		c.json(await usageFor(c.req.query("date") ?? localDate())),
 	)
 	.get("/multipliers", async (c) => c.json(await multipliers()))
 	/** Week containing ?date= (defaults to this week). */

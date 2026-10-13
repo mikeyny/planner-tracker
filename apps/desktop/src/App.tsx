@@ -12,6 +12,7 @@ import {
 	Sunrise,
 } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
+import { CoachPanel } from "./components/CoachPanel";
 import { CommandPalette } from "./components/CommandPalette";
 import {
 	BreakOffer,
@@ -138,6 +139,7 @@ export function App() {
 			<IdleReturnDialog />
 			<CommandPalette />
 			<SessionEffects />
+			<CoachPanel />
 
 			{toast && (
 				<div

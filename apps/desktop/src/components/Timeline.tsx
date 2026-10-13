@@ -6,7 +6,7 @@ import {
 	type Task,
 	type TimeBlock,
 } from "@deep/shared";
-import { Play, X } from "lucide-react";
+import { CalendarDays, Play, Video, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { NO_PROJECT_COLOR, useNow } from "../lib/hooks";
@@ -17,15 +17,22 @@ import {
 	useDay,
 	useSettings,
 } from "../lib/queries";
+import { openUrl } from "../lib/tauri";
 import { attempt, setUi } from "../lib/ui";
 import { cx } from "./ui";
 
 const PPM = 1.15; // pixels per minute
 const SNAP = 15;
 
-type Draft = Omit<TimeBlock, "id" | "date">;
+/** Blocks you placed yourself. Calendar meetings are read-only and drawn separately. */
+type Draft = Omit<TimeBlock, "id" | "date" | "source" | "url">;
 
 const snap = (m: number) => Math.round(m / SNAP) * SNAP;
+
+type Span = { startMin: number; durationMin: number };
+const overlaps = (a: Span, b: Span) =>
+	a.startMin < b.startMin + b.durationMin &&
+	b.startMin < a.startMin + a.durationMin;
 
 export function Timeline({
 	date,
@@ -46,8 +53,17 @@ export function Timeline({
 	const dragOffset = useRef(0);
 
 	useEffect(() => {
-		if (day) setBlocks(day.blocks.map(({ id: _id, date: _d, ...b }) => b));
+		if (day)
+			setBlocks(
+				day.blocks
+					.filter((b) => b.source !== "calendar")
+					.map(({ id: _id, date: _d, source: _s, url: _u, ...b }) => b),
+			);
 	}, [day]);
+	const meetings = useMemo(
+		() => day?.blocks.filter((b) => b.source === "calendar") ?? [],
+		[day],
+	);
 
 	const startMin =
 		Math.floor(
@@ -213,7 +229,11 @@ export function Timeline({
 									e.clientY - e.currentTarget.getBoundingClientRect().top;
 							}}
 							className={cx(
-								"group absolute right-0 left-1 flex flex-col overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-[11.5px] font-semibold",
+								"group absolute left-1 flex flex-col overflow-hidden rounded-lg border-l-[3px] px-2 py-1 text-[11.5px] font-semibold",
+								// Share the row with a calendar meeting instead of hiding it.
+								meetings.some((m) => overlaps(m, b))
+									? "right-[calc(45%+4px)]"
+									: "right-0",
 								task?.status === "done" && "opacity-50",
 							)}
 							style={{
@@ -284,6 +304,15 @@ export function Timeline({
 					);
 				})}
 
+				{meetings.map((m) => (
+					<CalendarBlock
+						key={m.id}
+						block={m}
+						startMin={startMin}
+						beside={blocks.some((b) => overlaps(m, b))}
+					/>
+				))}
+
 				{/* What actually happened, as a thin rail on the right. */}
 				<ActualRail
 					sessions={day?.sessions ?? []}
@@ -304,9 +333,60 @@ export function Timeline({
 				)}
 			</div>
 			<div className="mt-2 ml-[46px] text-[11px] text-faint">
-				Drag tasks here. Double-click to add a meeting. The right edge shows
-				actual focus and ◆ your commits.
+				Drag tasks here. Double-click to add a meeting. Calendar meetings sync
+				from Settings. The right edge shows actual focus and ◆ your commits.
 			</div>
+		</div>
+	);
+}
+
+/** A meeting from a synced calendar: read-only, with a join button for video calls. */
+function CalendarBlock({
+	block: b,
+	startMin,
+	beside,
+}: {
+	block: TimeBlock;
+	startMin: number;
+	/** Overlaps one of your blocks: take the right-hand column. */
+	beside: boolean;
+}) {
+	const h = b.durationMin * PPM;
+	return (
+		<div
+			className={cx(
+				"group absolute right-0 flex flex-col overflow-hidden rounded-lg border-l-[3px] border-[#8b86a0] px-2 py-1 text-[11.5px] font-semibold",
+				beside ? "left-[55%]" : "left-1",
+			)}
+			style={{
+				top: (b.startMin - startMin) * PPM + 1,
+				height: Math.max(18, h - 2),
+				background:
+					"repeating-linear-gradient(135deg,#25232c 0 6px,#1e1c24 6px 12px)",
+				zIndex: 3,
+			}}
+			title={`${b.title} · from your calendar`}
+		>
+			<span className="flex items-center gap-1.5 truncate">
+				<CalendarDays size={11} className="shrink-0 text-muted" />
+				<span className="truncate">{b.title}</span>
+			</span>
+			{h > 44 && (
+				<span className="font-mono text-[10px] font-normal text-muted">
+					{minToHhmm(b.startMin)}–{minToHhmm(b.startMin + b.durationMin)}
+				</span>
+			)}
+			{b.url && (
+				<button
+					type="button"
+					aria-label="Join meeting"
+					title="Join meeting"
+					onClick={() => openUrl(b.url!)}
+					className="absolute top-1 right-1 hidden size-5 place-items-center rounded bg-black/30 text-fg hover:bg-black/50 group-hover:grid cursor-pointer"
+				>
+					<Video size={11} />
+				</button>
+			)}
 		</div>
 	);
 }

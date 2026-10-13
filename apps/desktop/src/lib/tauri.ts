@@ -95,3 +95,15 @@ export async function pickSavePath(
 	});
 	return res ?? null;
 }
+
+/** Open a web link in the default browser. */
+export async function openUrl(url: string) {
+	if (!/^https?:\/\//i.test(url)) return;
+	if (inTauri) await call("open_url", { url });
+	else window.open(url, "_blank", "noopener");
+}
+
+/** Show a folder in File Explorer (desktop app only). */
+export async function openFolder(path: string) {
+	await call("open_folder", { path });
+}

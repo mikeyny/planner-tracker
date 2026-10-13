@@ -1,5 +1,6 @@
 import { formatMinutes } from "@deep/shared";
 import { useState } from "react";
+import { AppUsageCard } from "../components/AppUsage";
 import {
 	EmptyState,
 	ProjectDot,
@@ -101,6 +102,8 @@ function TodayStats() {
 					sub={`${stats.urges} urge${stats.urges === 1 ? "" : "s"} · ${stats.interruptions} interruption${stats.interruptions === 1 ? "" : "s"}`}
 				/>
 			</div>
+
+			<AppUsageCard date={today} />
 
 			<div className="grid grid-cols-2 gap-4">
 				<section className="flex flex-col gap-3 rounded-[14px] border border-line bg-surface p-4">

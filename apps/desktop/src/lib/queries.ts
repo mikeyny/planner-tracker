@@ -1,9 +1,13 @@
 import type {
 	AiStatus,
+	AppUsage,
+	BrowserStatus,
+	CalendarFeed,
 	Capture,
 	DayPlan,
 	DayStats,
 	Multiplier,
+	NextMeeting,
 	Project,
 	Settings,
 	Task,
@@ -27,6 +31,8 @@ export function wireInvalidation() {
 		if (e.type === "changed") {
 			for (const what of e.what)
 				queryClient.invalidateQueries({ queryKey: [what] });
+			if (e.what.includes("calendar"))
+				queryClient.invalidateQueries({ queryKey: ["capacity"] });
 			if (e.what.includes("tasks")) {
 				queryClient.invalidateQueries({ queryKey: ["stats"] });
 				queryClient.invalidateQueries({ queryKey: ["capacity"] });
@@ -276,4 +282,33 @@ export const useCommits = (date: string) =>
 		queryKey: ["day", "commits", date],
 		queryFn: () => api.get<Commit[]>(`/day/${date}/commits`),
 		refetchInterval: 5 * 60_000,
+	});
+
+export const useCalendars = () =>
+	useQuery({
+		queryKey: ["calendar", "feeds"],
+		queryFn: () => api.get<CalendarFeed[]>("/calendars"),
+	});
+
+/** The next meeting today, refreshed every minute. */
+export const useNextMeeting = () =>
+	useQuery({
+		queryKey: ["calendar", "next"],
+		queryFn: () => api.get<NextMeeting | null>("/calendars/next"),
+		refetchInterval: 60_000,
+		staleTime: 30_000,
+	});
+
+export const useBrowserStatus = () =>
+	useQuery({
+		queryKey: ["browser-status"],
+		queryFn: () => api.get<BrowserStatus>("/browser/status"),
+		refetchInterval: 15_000,
+	});
+
+export const useAppUsage = (date: string) =>
+	useQuery({
+		queryKey: ["stats", "apps", date],
+		queryFn: () => api.get<AppUsage>(`/stats/apps?date=${date}`),
+		refetchInterval: 60_000,
 	});

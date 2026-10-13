@@ -44,6 +44,7 @@ Closing the main window hides it to the tray so tracking keeps running. Quit fro
 apps/api       Bun + Hono API on 127.0.0.1:4040 (timer engine, idle watcher, VS Code rules, Whisper, Gemini)
 apps/desktop   Tauri 2 + React 19 + Tailwind 4: main window, always-on-top mini timer, quick-capture window
 apps/vscode    VS Code extension "Deep Focus": heartbeats, status-bar timer, start/switch prompts
+apps/browser   Chrome/Edge extension "Deep Focus Guard": site blocking during focus, active-site reporting
 packages/db    Drizzle schema and migrations (Postgres)
 packages/shared Types, timer maths and settings shared by every app
 docker/        docker-compose for Postgres
@@ -97,6 +98,43 @@ Reload VS Code afterwards. The status bar shows the running session; click it fo
 - **Commits on the timeline**: ◆ marks on the right edge of Today's timeline show your own commits (by your global git email) in linked repos.
 - **Slipping tasks**: Start my day flags a task that has been moved twice already and offers Make it smaller.
 
+## Phase 5: always there
+
+### Installer and start with Windows
+
+```bash
+bun run build:desktop   # NSIS installer in apps/desktop/src-tauri/target/release/bundle/nsis (needs ~2 GB free)
+```
+
+The installed app turns on **Start Deep when Windows starts** the first time it runs (switch it off in Settings → App). At login it starts quietly in the tray and starts the local API, which waits for Docker (and opens Docker Desktop if it isn't running). The API's output goes to `~/.deep/api.log`. The installed app still runs the API from this repo folder, so keep the repo where it is.
+
+### Calendar (Google Calendar, read-only)
+
+Settings → Calendar → paste Google Calendar's **Secret address in iCal format** (Google Calendar → Settings → your calendar → Integrate calendar). Meetings for yesterday to two weeks ahead are synced every 10 minutes and cached, so they still show offline. They appear on Today's timeline (read-only, with a join button for Meet/Zoom/Teams links), count against your free time, trigger a heads-up 5 minutes before, and the Start session dialog offers to fit a session before the next meeting. Declined and "free" events are skipped. No Google login or OAuth app is needed.
+
+### Window activity and drift nudges
+
+The API samples the app and window title in front every 5 seconds (Windows only, stored in the local database, deleted after 30 days by default). Stats → Today shows **Where your time went**: work, messages, distracting and other time, top apps and sites, how much of your focus time was on task, switches per hour, and your longest unbroken stretch. If a distracting site or app stays in front for 30 seconds during a focus session, Deep nudges you once (a toast and a notification). Turn either off in Settings → Distractions, which also holds the list of distracting sites (domains) and apps (names like `steam`).
+
+### Site blocking (browser extension)
+
+`apps/browser` is the **Deep Focus Guard** extension for Chrome or Edge. Install it once:
+
+1. Open `chrome://extensions` and switch on **Developer mode**.
+2. **Load unpacked** → pick `apps/browser` (Settings → Distractions shows the full path with a Copy button).
+
+It pairs with Deep by itself (the API only hands its key to this extension's fixed ID). While a focus session runs (not paused), the distracting domains redirect to a calm "This can wait" page with your project and time left. **I need it for this task** asks why, waits 10 seconds, then opens the site for 5 minutes; both the attempt and the reason are saved to your distraction log. Nothing is blocked between sessions or when Deep isn't running. The extension also reports the active tab's domain, so window activity knows which site you were on.
+
+### Voice coach (Gemini Live)
+
+A real-time voice conversation with a focus coach (`GEMINI_LIVE_MODEL`, default `gemini-3.8-live`; audio goes through the local API so the key stays on this PC):
+
+- **Plan with coach** (Today): talk through the day; suggested tasks appear in the panel and are only added when you click **Add**.
+- **Check-in** (focus screen, or automatically when a session starts if Settings → Voice check-ins is on): it asks what you'll have done when the timer ends and saves that as the session intention.
+- **Talk it through** (End session): it fills in the outcome, where you left off, and focus rating for you to confirm.
+
+Calls end themselves after 3 minutes (15 for planning). Each call is logged in `ai_runs`.
+
 ## Backups
 
 A gzipped `pg_dump` is written to `~/.deep/backups/deep-YYYY-MM-DD.sql.gz` once a day while the API runs (Settings → Backups also has **Back up now**). The newest 14 are kept by default.
@@ -113,7 +151,7 @@ gunzip -c ~/.deep/backups/deep-2026-10-09.sql.gz | docker exec -i deep_postgres 
 bun run test        # unit tests for the insight calculations (no database needed)
 ```
 
-End-to-end tests run against a separate `deep_test` database and a second API on port 4050, so they never touch your data. Start the two test servers in their own terminals, then run everything:
+End-to-end tests (Phases 4 and 5, including one short real Gemini Live call when a key is set) run against a separate `deep_test` database and a second API on port 4050, so they never touch your data. Start the two test servers in their own terminals, then run everything:
 
 ```bash
 docker exec deep_postgres createdb -U deep deep_test   # once
@@ -122,11 +160,14 @@ bun run e2e:ui      # test front-end on :5181
 bun run e2e         # seeds deep_test, runs API tests, reseeds, runs UI tests in headless Chrome
 ```
 
+The browser extension test needs Chrome for Testing (branded Chrome no longer loads unpacked extensions from the command line):
+
+```bash
+bunx @puppeteer/browsers install chrome@stable --path ~/cft
+cd apps/desktop && DEEP_E2E_EXT_CHROME=<path to chrome.exe> bun --env-file=../../.env test e2e/extension
+```
+
 UI screenshots land in `apps/desktop/e2e/out`. The seed refuses to wipe any database whose name doesn't end in `_test` unless you pass `--yes`.
-
-## Building an installer
-
-`bun run build:desktop` produces an NSIS installer. It needs roughly 2 GB of free disk for the release build. "Start Deep when Windows starts" only works from the installed build.
 
 ## Walkthrough video
 

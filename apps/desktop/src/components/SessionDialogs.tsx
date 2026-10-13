@@ -7,9 +7,11 @@ import {
 } from "@deep/shared";
 import {
 	Ban,
+	CalendarClock,
 	Check,
 	Coffee,
 	Inbox,
+	Mic,
 	Sun,
 	Trash2,
 	TrendingUp,
@@ -20,13 +22,15 @@ import { useLiveState } from "../lib/live";
 import {
 	queryClient,
 	session,
+	useAiStatus,
 	useCaptures,
+	useNextMeeting,
 	useProjects,
 	useSettings,
 	useTasks,
 	useToday,
 } from "../lib/queries";
-import { attempt, setUi, useUi } from "../lib/ui";
+import { attempt, getUi, setUi, useUi } from "../lib/ui";
 import { Button, cx, inputCls, Kbd, Modal, ProjectChip, Segmented } from "./ui";
 
 /** Last focused task, so "back to work" after a break is one click. */
@@ -80,6 +84,17 @@ export function StartSessionDialog() {
 		if (task) setProjectId(task.projectId);
 	}, [task]);
 
+	const { data: ai } = useAiStatus();
+	const { data: meeting } = useNextMeeting();
+	const plannedMin =
+		mode === "timebox" ? minutes : (TIMER_MODES[mode].workMin ?? null);
+	// A meeting would cut this session short: offer to fit it in.
+	const clash =
+		meeting && plannedMin !== null && plannedMin > meeting.inMin - 2
+			? meeting
+			: null;
+	const fitMin = clash ? Math.floor((clash.inMin - 3) / 5) * 5 : 0;
+
 	const close = () => setUi({ startDialog: null });
 	const start = async () => {
 		const ok = await attempt(() =>
@@ -93,7 +108,14 @@ export function StartSessionDialog() {
 		);
 		if (ok !== undefined) {
 			rememberFocus({ taskId, projectId });
-			setUi({ startDialog: null, focusOpen: true });
+			setUi({
+				startDialog: null,
+				focusOpen: true,
+				coach:
+					ai?.gemini && settings && settings.coachCheckins !== "off"
+						? "checkin"
+						: null,
+			});
 		}
 	};
 
@@ -211,6 +233,27 @@ export function StartSessionDialog() {
 					</div>
 				</div>
 
+				{clash && (
+					<div className="flex items-center gap-3 rounded-[11px] border border-[#4a3b17] bg-warn-bg px-3.5 py-2.5 text-[12.5px]">
+						<CalendarClock size={16} className="shrink-0 text-warn" />
+						<span className="flex-1">
+							<b className="font-semibold">{clash.title}</b> at {clash.at}, in{" "}
+							{clash.inMin} min.
+						</span>
+						{fitMin >= 10 && (
+							<Button
+								size="sm"
+								onClick={() => {
+									setMode("timebox");
+									setMinutes(fitMin);
+								}}
+							>
+								Fit to {fitMin} min
+							</Button>
+						)}
+					</div>
+				)}
+
 				<div className="flex flex-col gap-1.5">
 					<label
 						htmlFor="start-intention"
@@ -259,6 +302,11 @@ export function EndSessionDialog() {
 	const [note, setNote] = useState("");
 	const [rating, setRating] = useState<number | null>(null);
 
+	const { data: settings } = useSettings();
+	const { data: ai } = useAiStatus();
+	const wrapUp = useUi((u) => u.coachWrapUp);
+	const coach = useUi((u) => u.coach);
+
 	useEffect(() => {
 		if (open) {
 			setOutcome("progress");
@@ -267,7 +315,31 @@ export function EndSessionDialog() {
 		}
 	}, [open]);
 
-	const close = () => setUi({ endDialog: false });
+	// The coach can open the wrap-up as a conversation.
+	const wantsCoach =
+		open &&
+		!!s &&
+		s.kind === "focus" &&
+		!!ai?.gemini &&
+		settings?.coachCheckins === "both";
+	useEffect(() => {
+		if (wantsCoach) setUi({ coach: "checkout" });
+	}, [wantsCoach]);
+
+	// …and fills in the form from what you said.
+	useEffect(() => {
+		if (!wrapUp) return;
+		setOutcome(wrapUp.outcome);
+		if (wrapUp.note) setNote(wrapUp.note);
+		if (wrapUp.rating) setRating(wrapUp.rating);
+		setUi({ coachWrapUp: null });
+	}, [wrapUp]);
+
+	const close = () =>
+		setUi({
+			endDialog: false,
+			...(coach === "checkout" ? { coach: null } : {}),
+		});
 	const finish = async () => {
 		const res = await attempt(() =>
 			session.stop({ outcome, leftOffNote: note || null, focusRating: rating }),
@@ -275,6 +347,7 @@ export function EndSessionDialog() {
 		if (!res) return;
 		setUi({
 			endDialog: false,
+			...(getUi().coach === "checkout" ? { coach: null } : {}),
 			focusOpen: false,
 			breakOffer: res.breakMin > 0 ? res.breakMin : null,
 		});
@@ -370,6 +443,15 @@ export function EndSessionDialog() {
 					</div>
 				</div>
 				<div className="flex justify-end gap-2">
+					{ai?.gemini && coach !== "checkout" && (
+						<Button
+							tone="quiet"
+							className="mr-auto"
+							onClick={() => setUi({ coach: "checkout" })}
+						>
+							<Mic size={14} /> Talk it through
+						</Button>
+					)}
 					<Button tone="quiet" onClick={close}>
 						Keep going
 					</Button>

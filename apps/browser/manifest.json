@@ -1,0 +1,16 @@
+{
+	"manifest_version": 3,
+	"name": "Deep Focus Guard",
+	"version": "0.1.0",
+	"description": "Blocks distracting sites while a Deep focus session runs, and tells Deep which site you're on.",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA2ji2Eq0VQ84+dRjFynttl+0cb9kCFBcFzo5A8woVfn7yVRVO1psRG7H+hqj0LnGZM7+uZ82ft9gbPi7saIvOqu5mxNK9Xq9e5ghNbqYBgk0INVs7FHwHhygmU8E+o38c/JKnfC0rtQoKdxWqbE/2d1nU2fKx45Yl1JfmhieNlj+olreSDSa2w1NtrRg32t4CYfItslTbWRs3LeaV2aywzKoT/MBlYL13OeydKH3gObs83W9XcJUhX2arODgNE07RUQckfsSOsxwdhl2WPoPt5NoGD/YkGYRPfUZNU7TDMQp5sm04jAKOynbJXRUg9kQP2o9Z27/u+t59lV2rcWqf/QIDAQAB",
+	"minimum_chrome_version": "120",
+	"background": { "service_worker": "background.js", "type": "module" },
+	"permissions": ["declarativeNetRequest", "storage", "tabs", "alarms"],
+	"host_permissions": ["<all_urls>"],
+	"action": { "default_popup": "popup.html", "default_title": "Deep" },
+	"icons": { "32": "icons/32.png", "128": "icons/128.png" },
+	"web_accessible_resources": [
+		{ "resources": ["blocked.html"], "matches": ["<all_urls>"] }
+	]
+}

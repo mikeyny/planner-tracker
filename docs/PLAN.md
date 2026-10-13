@@ -13,7 +13,7 @@ Decisions taken:
 - VS Code asks before starting a session (auto-start is a setting).
 - Daily deep-work target defaults to 3h30.
 
-Next up is Phase 5: installer and launch at login, active-window tracking, site blocking, Google Calendar, voice coach.
+Phases 0–5 are built: installer and launch at login, active-window tracking with drift nudges, site blocking (browser extension), Google Calendar (read-only iCal feed) and the Gemini Live voice coach.
 
 ---
 

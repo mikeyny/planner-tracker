@@ -1,5 +1,6 @@
 import { formatMinutes, suggestedBreakMin, TIMER_MODES } from "@deep/shared";
 import {
+	AudioLines,
 	ChevronDown,
 	Coffee,
 	Hand,
@@ -27,6 +28,7 @@ import { NO_PROJECT_COLOR, useTimer } from "../lib/hooks";
 import {
 	capture,
 	session,
+	useAiStatus,
 	useCaptures,
 	useProjects,
 	useSettings,
@@ -44,6 +46,7 @@ const BREAK_IDEAS = [
 ];
 
 export function FocusView() {
+	const { data: ai } = useAiStatus();
 	const {
 		session: s,
 		elapsed,
@@ -125,6 +128,14 @@ export function FocusView() {
 						<ChevronDown size={14} /> Back to plan <Kbd>Esc</Kbd>
 					</Button>
 					<div className="ml-auto flex items-center gap-1">
+						{ai?.gemini && !isBreak && (
+							<IconButton
+								label="Check in with the coach"
+								onClick={() => setUi({ coach: "checkin" })}
+							>
+								<AudioLines size={16} />
+							</IconButton>
+						)}
 						<SoundPicker
 							value={settings?.sound ?? "off"}
 							onChange={(sound) => updateSettings.mutate({ sound })}

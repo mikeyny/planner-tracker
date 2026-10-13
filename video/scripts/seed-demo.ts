@@ -41,7 +41,7 @@ if (!dbName.endsWith("_test") && !process.argv.includes("--yes")) {
 	process.exit(1);
 }
 
-await sql`TRUNCATE projects, project_paths, tasks, day_plans, time_blocks, sessions, session_pauses, captures, activity_events, ai_runs, settings, reviews RESTART IDENTITY CASCADE`;
+await sql`TRUNCATE projects, project_paths, tasks, day_plans, time_blocks, sessions, session_pauses, captures, activity_events, ai_runs, settings, reviews, window_spans, calendars RESTART IDENTITY CASCADE`;
 if (phase === "reset") {
 	console.log("database emptied");
 	process.exit(0);

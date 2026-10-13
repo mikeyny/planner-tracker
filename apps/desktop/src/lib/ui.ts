@@ -1,3 +1,4 @@
+import type { CoachMode, SessionOutcome } from "@deep/shared";
 import { useSyncExternalStore } from "react";
 
 export type View =
@@ -25,6 +26,14 @@ interface UiState {
 	/** After a focus session ends: offer a break of this many minutes. */
 	breakOffer: number | null;
 	composerFocus: number;
+	/** An open voice call with the coach. */
+	coach: CoachMode | null;
+	/** The coach filled in the end-session form; the dialog applies it. */
+	coachWrapUp: {
+		outcome: SessionOutcome;
+		note: string;
+		rating: number | null;
+	} | null;
 }
 
 /** ?view=stats opens that view (handy for tests); otherwise the last view used. */
@@ -47,6 +56,8 @@ let state: UiState = {
 	toast: null,
 	breakOffer: null,
 	composerFocus: 0,
+	coach: null,
+	coachWrapUp: null,
 };
 const listeners = new Set<() => void>();
 

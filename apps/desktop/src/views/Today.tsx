@@ -1,5 +1,5 @@
 import { formatMinutes, hhmmToMin, type Task } from "@deep/shared";
-import { Moon, Sunrise } from "lucide-react";
+import { AudioLines, Moon, Sunrise } from "lucide-react";
 import { useMemo, useState } from "react";
 import { CapacityBanner } from "../components/Capacity";
 import { SplitDialog } from "../components/SplitDialog";
@@ -9,6 +9,7 @@ import { Timeline } from "../components/Timeline";
 import { Button, EmptyState, SectionLabel } from "../components/ui";
 import { useNow } from "../lib/hooks";
 import {
+	useAiStatus,
 	useDay,
 	useDayStats,
 	useProjects,
@@ -20,6 +21,7 @@ import {
 import { setUi } from "../lib/ui";
 
 export function TodayView() {
+	const { data: ai } = useAiStatus();
 	const today = useToday();
 	const { data: tasks = [] } = useTasks("today", today);
 	const { data: overdue = [] } = useTasks("overdue", today);
@@ -72,6 +74,15 @@ export function TodayView() {
 						</h1>
 					</div>
 					<div className="flex gap-2">
+						{ai?.gemini && !shutDown && (
+							<Button
+								tone="ghost"
+								onClick={() => setUi({ coach: "plan" })}
+								title="Talk through today's plan with the voice coach"
+							>
+								<AudioLines size={15} /> Plan with coach
+							</Button>
+						)}
 						{!started && !shutDown && (
 							<Button
 								tone="primary"

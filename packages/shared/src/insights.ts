@@ -129,3 +129,33 @@ export function addDays(date: string, days: number): string {
 function isoDay(d: Date) {
 	return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+export type AppCategory = "work" | "comms" | "distraction" | "other";
+
+export interface AppUsageItem {
+	/** Site domain for browsers when known, else the app name. */
+	label: string;
+	app: string;
+	site: string | null;
+	category: AppCategory;
+	sec: number;
+	/** Seconds of it during focus sessions. */
+	focusSec: number;
+}
+
+export interface AppUsage {
+	date: string;
+	/** Seconds at the screen with tracking on. */
+	totalSec: number;
+	byCategory: Record<AppCategory, number>;
+	/** Top apps and sites, longest first. */
+	items: AppUsageItem[];
+	/** Seconds at the screen during focus sessions. */
+	focusSec: number;
+	/** Of those, seconds on distractions. */
+	offTaskSec: number;
+	/** Times you switched app or site during focus, per focused hour. */
+	switchesPerHour: number | null;
+	/** Longest unbroken stretch on work apps during focus, in seconds. */
+	longestWorkSec: number;
+}

@@ -99,6 +99,12 @@ export const timeBlocks = pgTable(
 		startMin: integer("start_min").notNull(),
 		durationMin: integer("duration_min").notNull(),
 		kind: text("kind").notNull().default("task"),
+		/** manual | calendar. Calendar blocks are replaced on every sync. */
+		source: text("source").notNull().default("manual"),
+		calendarId: integer("calendar_id"),
+		externalId: text("external_id"),
+		/** Meeting link (Meet, Zoom, Teams) for calendar blocks. */
+		url: text("url"),
 	},
 	(t) => [index("time_blocks_date_idx").on(t.date)],
 );
@@ -209,3 +215,40 @@ export const reviews = pgTable(
 	},
 	(t) => [uniqueIndex("reviews_kind_period_idx").on(t.kind, t.periodStart)],
 );
+
+/** Foreground-window activity: one row per unbroken stretch in one app and window title. */
+export const windowSpans = pgTable(
+	"window_spans",
+	{
+		id: serial("id").primaryKey(),
+		/** Friendly app name ("Chrome", "VS Code"). */
+		app: text("app").notNull(),
+		exe: text("exe").notNull(),
+		/** Window title without the app suffix. */
+		detail: text("detail"),
+		/** Website domain, when the app is a browser and it's known. */
+		site: text("site"),
+		/** work | comms | distraction | other */
+		category: text("category").notNull().default("other"),
+		startedAt: ts("started_at").notNull(),
+		endedAt: ts("ended_at").notNull(),
+		sec: integer("sec").notNull().default(0),
+		/** The focus session running (not paused) at the time, if any. */
+		sessionId: integer("session_id").references(() => sessions.id, {
+			onDelete: "set null",
+		}),
+	},
+	(t) => [index("window_spans_started_idx").on(t.startedAt)],
+);
+
+/** Calendar feeds, e.g. Google Calendar's "secret address in iCal format". */
+export const calendars = pgTable("calendars", {
+	id: serial("id").primaryKey(),
+	name: text("name").notNull(),
+	url: text("url").notNull(),
+	enabled: boolean("enabled").notNull().default(true),
+	lastSyncAt: ts("last_sync_at"),
+	lastError: text("last_error"),
+	eventCount: integer("event_count").notNull().default(0),
+	createdAt: ts("created_at").notNull().defaultNow(),
+});

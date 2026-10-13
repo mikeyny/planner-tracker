@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { runMigrations, sql } from "@deep/db";
@@ -8,12 +8,18 @@ import { cors } from "hono/cors";
 import { HTTPException } from "hono/http-exception";
 import { ZodError } from "zod";
 import { startBackupJob } from "./lib/backup";
-import { addClient, removeClient } from "./lib/bus";
+import { EXTENSION_ID } from "./lib/browser";
+import { addClient, broadcast, removeClient } from "./lib/bus";
+import { startCalendarJob } from "./lib/calendar";
+import { CoachCall, type CoachSocketData, parseCoachMode } from "./lib/coach";
 import { buildState } from "./lib/state";
 import { startIdleWatcher } from "./lib/watchers";
 import { stopWhisper } from "./lib/whisper";
+import { startWindowWatcher } from "./lib/winwatch";
 import { activityRouter } from "./routes/activity";
 import { aiRouter } from "./routes/ai";
+import { browserRouter } from "./routes/browser";
+import { calendarsRouter } from "./routes/calendars";
 import { capturesRouter } from "./routes/captures";
 import { dayRouter } from "./routes/day";
 import { exportsRouter } from "./routes/exports";
@@ -72,7 +78,22 @@ app.use(
 	}),
 );
 
-app.get("/health", (c) => c.json({ ok: true }));
+app.get("/health", (c) =>
+	c.json({
+		ok: true,
+		timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+	}),
+);
+
+// The Deep browser extension asks for the key here. Web pages can't fake the
+// Origin header (Chrome sends it on POST), so only the extension with our fixed ID gets it.
+app.post("/pair", (c) => {
+	if (c.req.header("origin") !== `chrome-extension://${EXTENSION_ID}`)
+		throw new HTTPException(403, {
+			message: "Only the Deep extension can pair.",
+		});
+	return c.json({ token: TOKEN });
+});
 
 // Every API call must carry the local token, so other web pages can't drive the timer.
 app.use("/api/*", async (c, next) => {
@@ -92,27 +113,46 @@ app.route("/api/ai", aiRouter);
 app.route("/api/activity", activityRouter);
 app.route("/api/settings", settingsRouter);
 app.route("/api/reviews", reviewsRouter);
+app.route("/api/browser", browserRouter);
+app.route("/api/calendars", calendarsRouter);
 app.route("/api", exportsRouter);
 
-/** Wait for Postgres, starting the Docker container if it's down. */
+const DOCKER_DESKTOP = "C:/Program Files/Docker/Docker/Docker Desktop.exe";
+
+async function dockerStart(): Promise<boolean> {
+	const proc = Bun.spawn(["docker", "start", "deep_postgres"], {
+		stdout: "ignore",
+		stderr: "ignore",
+		windowsHide: true,
+	});
+	return (await proc.exited) === 0;
+}
+
+/**
+ * Wait for Postgres, starting the Docker container if it's down. At login Docker
+ * Desktop may still be starting (or not running at all), so keep trying for a while.
+ */
 async function waitForDatabase() {
-	const deadline = Date.now() + 120_000;
-	let triedDocker = false;
+	const deadline = Date.now() + 10 * 60_000;
+	let nextDockerTry = 0;
+	let launchedDesktop = false;
 	while (true) {
 		try {
 			await sql`select 1`;
 			return;
 		} catch (err) {
-			if (!triedDocker) {
-				triedDocker = true;
-				console.log(
-					"[api] database not reachable, starting container deep_postgres…",
-				);
-				Bun.spawn(["docker", "start", "deep_postgres"], {
-					stdout: "ignore",
-					stderr: "ignore",
-					windowsHide: true,
-				});
+			if (Date.now() >= nextDockerTry) {
+				nextDockerTry = Date.now() + 15_000;
+				console.log("[api] database not reachable, starting deep_postgres…");
+				const ok = await dockerStart().catch(() => false);
+				if (!ok && !launchedDesktop && existsSync(DOCKER_DESKTOP)) {
+					launchedDesktop = true;
+					console.log("[api] Docker isn't running, starting Docker Desktop…");
+					Bun.spawn([DOCKER_DESKTOP], {
+						stdout: "ignore",
+						stderr: "ignore",
+					}).unref();
+				}
 			}
 			if (Date.now() > deadline) throw err;
 			await Bun.sleep(2000);
@@ -138,36 +178,74 @@ if (!process.env.DEEP_TEST) {
 	writeConnectionFile();
 	startIdleWatcher();
 	startBackupJob();
+	startCalendarJob();
+	startWindowWatcher();
+} else {
+	// Test-only hooks to feed the window tracker fake samples.
+	const { testingRouter } = await import("./routes/testing");
+	app.route("/api/test", testingRouter);
 }
 
-Bun.serve({
+type SocketData = { kind: "live" } | CoachSocketData;
+
+Bun.serve<SocketData, never>({
 	hostname: "127.0.0.1",
 	port: PORT,
 	idleTimeout: 120,
 	fetch(req, server) {
 		const url = new URL(req.url);
-		if (url.pathname === "/ws") {
+		if (url.pathname === "/ws" || url.pathname === "/coach") {
 			if (TOKEN && url.searchParams.get("token") !== TOKEN) {
 				return new Response("Unauthorized", { status: 401 });
 			}
-			if (server.upgrade(req)) return undefined;
+			let data: SocketData = { kind: "live" };
+			if (url.pathname === "/coach") {
+				const mode = parseCoachMode(url.searchParams.get("mode"));
+				if (!mode) return new Response("Unknown coach mode", { status: 400 });
+				data = { kind: "coach", mode };
+			}
+			if (server.upgrade(req, { data })) return undefined;
 			return new Response("Expected a WebSocket upgrade", { status: 400 });
 		}
 		return app.fetch(req, server);
 	},
 	websocket: {
-		async open(ws: ServerWebSocket<unknown>) {
+		async open(ws) {
+			if (ws.data.kind === "coach") {
+				const call = new CoachCall(
+					ws as ServerWebSocket<CoachSocketData>,
+					ws.data.mode,
+				);
+				ws.data.call = call;
+				await call.start();
+				return;
+			}
 			addClient(ws);
 			ws.send(JSON.stringify({ type: "state", state: await buildState() }));
 		},
-		message() {},
+		message(ws, msg) {
+			if (ws.data.kind !== "coach") return;
+			if (typeof msg === "string") {
+				try {
+					const m = JSON.parse(msg) as { type: string; text?: string };
+					if (m.type === "text" && m.text) ws.data.call?.text(m.text);
+					if (m.type === "hangup") ws.data.call?.finish("hangup");
+				} catch {
+					// ignore malformed messages
+				}
+			} else ws.data.call?.audio(msg);
+		},
 		close(ws) {
-			removeClient(ws);
+			if (ws.data.kind === "coach") ws.data.call?.finish("hangup");
+			else removeClient(ws);
 		},
 	},
 });
 
 console.log(`[api] Deep API listening on http://127.0.0.1:${PORT}`);
+
+// Idle sockets (the browser extension's service worker) stay awake on traffic.
+setInterval(() => broadcast({ type: "ping" }), 25_000);
 
 for (const sig of ["SIGINT", "SIGTERM"] as const) {
 	process.on(sig, () => {

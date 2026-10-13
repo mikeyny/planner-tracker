@@ -25,23 +25,77 @@ fn api_up() -> bool {
     TcpStream::connect_timeout(&API_ADDR.parse().unwrap(), Duration::from_millis(300)).is_ok()
 }
 
+/// ~/.deep, where the API log and first-run markers live.
+fn deep_dir() -> Option<PathBuf> {
+    let home = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))?;
+    let dir = PathBuf::from(home).join(".deep");
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir)
+}
+
+/// `bun` from PATH, or the default install location (PATH can be thin at login).
+fn bun_candidates() -> Vec<PathBuf> {
+    let mut out = vec![PathBuf::from("bun")];
+    if let Some(home) = std::env::var_os("USERPROFILE") {
+        out.push(PathBuf::from(home).join(".bun").join("bin").join("bun.exe"));
+    }
+    out
+}
+
 /// Start the Bun API in the background if nothing is listening on its port yet.
+/// Its output goes to ~/.deep/api.log.
 fn ensure_api_running() {
     if api_up() {
         return;
     }
     let root = repo_root();
-    let mut cmd = Command::new("bun");
-    cmd.args(["--env-file=.env", "apps/api/src/index.ts"])
-        .current_dir(&root);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
+    let log = deep_dir().and_then(|d| {
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(d.join("api.log"))
+            .ok()
+    });
+    for bun in bun_candidates() {
+        let mut cmd = Command::new(&bun);
+        cmd.args(["--env-file=.env", "apps/api/src/index.ts"])
+            .current_dir(&root);
+        if let Some(f) = &log {
+            if let (Ok(out), Ok(err)) = (f.try_clone(), f.try_clone()) {
+                cmd.stdout(out).stderr(err);
+            }
+        }
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+        match cmd.spawn() {
+            Ok(_) => return,
+            Err(e) => eprintln!("[deep] could not start API with {}: {e}", bun.display()),
+        }
     }
-    if let Err(e) = cmd.spawn() {
-        eprintln!("[deep] could not start API from {}: {e}", root.display());
+}
+
+/// The installed app turns "start with Windows" on the first time it runs
+/// (Settings can switch it off). Dev builds never touch it.
+fn enable_autostart_once(app: &AppHandle) {
+    if cfg!(debug_assertions) {
+        return;
+    }
+    let Some(marker) = deep_dir().map(|d| d.join("autostart-initialized")) else {
+        return;
+    };
+    if marker.exists() {
+        return;
+    }
+    use tauri_plugin_autostart::ManagerExt;
+    match app.autolaunch().enable() {
+        Ok(()) => {
+            let _ = std::fs::write(&marker, "1");
+        }
+        Err(e) => eprintln!("[deep] could not enable start with Windows: {e}"),
     }
 }
 
@@ -148,6 +202,37 @@ fn set_tray_tooltip(app: AppHandle, text: String) {
     }
 }
 
+fn spawn_hidden(program: &str, args: &[&str]) -> Result<(), String> {
+    let mut cmd = Command::new(program);
+    cmd.args(args);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+/// Open a web link (a meeting's join link) in the default browser.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("Only web links can be opened.".into());
+    }
+    // rundll32 hands the URL to the default browser without a console window or shell parsing.
+    spawn_hidden("rundll32", &["url.dll,FileProtocolHandler", &url])
+}
+
+/// Show a folder in File Explorer.
+#[tauri::command]
+fn open_folder(path: String) -> Result<(), String> {
+    if !std::path::Path::new(&path).is_dir() {
+        return Err("That folder doesn't exist.".into());
+    }
+    Command::new("explorer").arg(&path).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn quit_app(app: AppHandle) {
     app.exit(0);
@@ -166,7 +251,8 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            // Launched at login: start quietly in the tray.
+            Some(vec!["--hidden"]),
         ))
         .plugin(
             tauri_plugin_global_shortcut::Builder::new()
@@ -184,10 +270,18 @@ pub fn run() {
             hide_capture,
             show_main,
             set_tray_tooltip,
+            open_url,
+            open_folder,
             quit_app
         ])
         .setup(move |app| {
             let handle = app.handle();
+
+            enable_autostart_once(handle);
+            // The main window starts hidden (no flash); show it unless launched at login.
+            if !std::env::args().any(|a| a == "--hidden") {
+                show_main_window(handle);
+            }
 
             if let Err(e) = handle.global_shortcut().register(capture_shortcut) {
                 eprintln!("[deep] could not register Ctrl+Shift+Space: {e}");

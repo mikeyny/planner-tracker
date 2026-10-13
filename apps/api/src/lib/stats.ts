@@ -201,11 +201,14 @@ export async function capacity(date: string) {
 	const meetings = await db.query.timeBlocks.findMany({
 		where: and(eq(timeBlocks.date, date), eq(timeBlocks.kind, "meeting")),
 	});
+	// Merge overlaps so a calendar meeting also added by hand isn't counted twice.
 	let meetingMin = 0;
-	for (const m of meetings) {
-		const s = Math.max(fromMin, m.startMin);
+	let reached = fromMin;
+	for (const m of [...meetings].sort((a, b) => a.startMin - b.startMin)) {
+		const s = Math.max(reached, m.startMin);
 		const e = Math.min(endMin, m.startMin + m.durationMin);
 		if (e > s) meetingMin += e - s;
+		reached = Math.max(reached, e);
 	}
 
 	const availableMin = Math.max(0, endMin - fromMin - meetingMin);

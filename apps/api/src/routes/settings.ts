@@ -33,6 +33,13 @@ const settingsInput = z
 		speechLanguage: z.string().min(2).max(8),
 		projectsRoot: z.string().max(500),
 		backupsKeep: z.number().int().min(1).max(365),
+		windowTracking: z.boolean(),
+		windowRetentionDays: z.number().int().min(1).max(365),
+		distracting: z.array(z.string().trim().min(1).max(200)).max(200),
+		driftNudge: z.boolean(),
+		blockSites: z.boolean(),
+		coachCheckins: z.enum(["off", "start", "both"]),
+		coachVoice: z.string().min(2).max(40),
 	})
 	.partial();
 

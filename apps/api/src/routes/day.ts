@@ -1,7 +1,7 @@
 import { dayPlans, db, timeBlocks } from "@deep/db";
 import { type DayPlan, formatMinutes, type TimeBlock } from "@deep/shared";
 import { zValidator } from "@hono/zod-validator";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import { geminiAvailable, summarizeDay } from "../lib/ai";
@@ -18,7 +18,14 @@ const blockInput = z.object({
 	startMin: z.number().int().min(0).max(1440),
 	durationMin: z.number().int().min(5).max(720),
 	kind: z.enum(["task", "meeting", "break"]),
+	/** Calendar blocks are owned by the sync; any sent back are ignored. */
+	source: z.enum(["manual", "calendar"]).optional(),
 });
+
+const manualOnly = (blocks: z.infer<typeof blockInput>[]) =>
+	blocks
+		.filter((b) => b.source !== "calendar")
+		.map(({ source: _source, ...b }) => b);
 
 function toPlan(date: string, row?: typeof dayPlans.$inferSelect): DayPlan {
 	return {
@@ -98,9 +105,13 @@ export const dayRouter = new Hono()
 		zValidator("json", z.object({ blocks: z.array(blockInput) })),
 		async (c) => {
 			const date = dateStr.parse(c.req.param("date"));
-			const { blocks } = c.req.valid("json");
+			const blocks = manualOnly(c.req.valid("json").blocks);
 			await db.transaction(async (tx) => {
-				await tx.delete(timeBlocks).where(eq(timeBlocks.date, date));
+				await tx
+					.delete(timeBlocks)
+					.where(
+						and(eq(timeBlocks.date, date), eq(timeBlocks.source, "manual")),
+					);
 				if (blocks.length)
 					await tx
 						.insert(timeBlocks)
@@ -116,9 +127,9 @@ export const dayRouter = new Hono()
 		zValidator("json", z.object({ blocks: z.array(blockInput).min(1) })),
 		async (c) => {
 			const date = dateStr.parse(c.req.param("date"));
-			await db
-				.insert(timeBlocks)
-				.values(c.req.valid("json").blocks.map((b) => ({ ...b, date })));
+			const blocks = manualOnly(c.req.valid("json").blocks);
+			if (blocks.length)
+				await db.insert(timeBlocks).values(blocks.map((b) => ({ ...b, date })));
 			changed("day");
 			return c.json({ ok: true }, 201);
 		},

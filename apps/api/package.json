@@ -17,6 +17,7 @@
 		"@hono/zod-validator": "^0.7.6",
 		"drizzle-orm": "^0.45.1",
 		"hono": "^4.11.3",
+		"ical.js": "^2.2.1",
 		"pdfkit": "^0.17",
 		"zod": "^4.0.0"
 	},
