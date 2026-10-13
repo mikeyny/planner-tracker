@@ -2,7 +2,7 @@ import { Loader2, Mic, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../lib/api";
 import { useAiStatus } from "../lib/queries";
-import { Recorder } from "../lib/recorder";
+import { CHUNKING, Recorder } from "../lib/recorder";
 import { toast } from "../lib/ui";
 import { cx } from "./ui";
 
@@ -10,7 +10,7 @@ const METER_BARS = 64;
 
 /**
  * Talk, and the words appear as you go. Audio is transcribed locally by Whisper
- * in ~20 s chunks while you keep talking.
+ * in chunks cut at pauses (5–12 s on the GPU, ~20 s on the CPU) while you keep talking.
  */
 export function VoiceDump({
 	value,
@@ -57,6 +57,7 @@ export function VoiceDump({
 		chunks.current = new Map();
 		base.current = valueRef.current;
 		const rec = new Recorder({
+			chunking: ai?.whisperBackend === "gpu" ? CHUNKING.fast : CHUNKING.slow,
 			onLevel: (l) => setLevels((prev) => [...prev.slice(1), l]),
 			onChunk: async (wav, index) => {
 				setPending((p) => p + 1);

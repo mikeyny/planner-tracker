@@ -4,10 +4,17 @@
  */
 
 const SAMPLE_RATE = 16_000;
-/** Start looking for a pause to cut at after this many seconds. */
-const MIN_CHUNK_SEC = 18;
-/** Cut regardless after this many seconds (Whisper's window is 30 s). */
-const MAX_CHUNK_SEC = 27;
+
+/**
+ * Chunk lengths. minSec: start looking for a pause to cut at. maxSec: cut regardless
+ * (Whisper's window is 30 s). On the GPU a chunk transcribes in ~0.3 s, so short
+ * chunks make words appear while you talk; on the CPU each one costs ~7 s.
+ */
+export const CHUNKING = {
+	fast: { minSec: 5, maxSec: 12 },
+	slow: { minSec: 18, maxSec: 27 },
+} as const;
+export type Chunking = { minSec: number; maxSec: number };
 /** This much trailing quiet counts as a pause. */
 const PAUSE_SEC = 0.5;
 const SILENCE_RMS = 0.012;
@@ -28,6 +35,7 @@ export interface RecorderHandlers {
 	onChunk: (wav: Blob, index: number) => void;
 	/** Input level 0..1, about 20 times a second. */
 	onLevel?: (level: number) => void;
+	chunking?: Chunking;
 }
 
 export class Recorder {
@@ -87,10 +95,11 @@ export class Recorder {
 			this.levelCount = 0;
 		}
 
+		const { minSec, maxSec } = this.handlers.chunking ?? CHUNKING.slow;
 		const sec = this.samples / SAMPLE_RATE;
 		const atPause =
-			sec >= MIN_CHUNK_SEC && this.quietSamples >= PAUSE_SEC * SAMPLE_RATE;
-		if (atPause || sec >= MAX_CHUNK_SEC) this.flush();
+			sec >= minSec && this.quietSamples >= PAUSE_SEC * SAMPLE_RATE;
+		if (atPause || sec >= maxSec) this.flush();
 	}
 
 	private flush() {

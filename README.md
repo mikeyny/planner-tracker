@@ -55,7 +55,7 @@ All API calls need the `X-Deep-Token` header from `.env`. The API also writes `~
 
 ## Speech to text (local Whisper)
 
-Voice brain dumps are transcribed on this PC by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the `large-v3-turbo` model (q5_0, 574 MB). The app records 16 kHz audio and sends it in ~20-second chunks cut at pauses, so text appears while you talk.
+Voice brain dumps are transcribed on this PC by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the `large-v3-turbo` model (q5_0, 574 MB). The app records 16 kHz audio and sends it in chunks cut at pauses (5–12 seconds on the GPU build, ~20 seconds on the CPU build), so text appears while you talk.
 
 - **GPU build (used when present):** CUDA 12.4 in `tools/whisper/bin-cuda` (1.2 GB, includes the CUDA runtime). On the RTX 4060 a 16-second chunk takes about 0.3 s (about 1.2 s for the first one while the model loads), using about 0.4 GB of video memory.
 - **CPU build (fallback):** OpenBLAS in `tools/whisper/bin` (61 MB), about 6–7 s per chunk on the i9-13900H. Deep switches to it automatically if the GPU build won't start or crashes, and stays on it until the API restarts.
