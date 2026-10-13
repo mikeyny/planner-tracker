@@ -10,15 +10,31 @@ function fromRoot(p: string) {
 	return isAbsolute(p) ? p : join(ROOT, p);
 }
 
-const DIR = fromRoot(process.env.WHISPER_DIR || "tools/whisper/bin");
+const EXE =
+	process.platform === "win32" ? "whisper-server.exe" : "whisper-server";
+/** CUDA build (fast, NVIDIA GPU). Used when present; the CPU build is the fallback. */
+const GPU_DIR = fromRoot(
+	process.env.WHISPER_GPU_DIR || "tools/whisper/bin-cuda",
+);
+const CPU_DIR = fromRoot(process.env.WHISPER_DIR || "tools/whisper/bin");
 const MODEL = fromRoot(
 	process.env.WHISPER_MODEL || "tools/whisper/ggml-large-v3-turbo-q5_0.bin",
 );
 const PORT = Number(process.env.WHISPER_PORT || 4041);
-const SERVER_EXE = join(
-	DIR,
-	process.platform === "win32" ? "whisper-server.exe" : "whisper-server",
-);
+
+export type WhisperBackend = "gpu" | "cpu";
+/** Set when the GPU build failed to start (no driver, out of VRAM): stay on CPU. */
+let gpuFailed = false;
+let backend: WhisperBackend | null = null;
+
+function candidates(): { backend: WhisperBackend; dir: string }[] {
+	const out: { backend: WhisperBackend; dir: string }[] = [];
+	if (!gpuFailed && existsSync(join(GPU_DIR, EXE)))
+		out.push({ backend: "gpu", dir: GPU_DIR });
+	if (existsSync(join(CPU_DIR, EXE)))
+		out.push({ backend: "cpu", dir: CPU_DIR });
+	return out;
+}
 /** Free the model's RAM after this long without a transcription. */
 const IDLE_SHUTDOWN_MS = 15 * 60 * 1000;
 const THREADS = Math.max(4, Math.min(12, cpus().length - 4));
@@ -33,13 +49,19 @@ let queue: Promise<unknown> = Promise.resolve();
 export type WhisperStatus = "ready" | "stopped" | "starting" | "missing";
 
 export function whisperStatus(): WhisperStatus {
-	if (!existsSync(SERVER_EXE) || !existsSync(MODEL)) return "missing";
+	if (candidates().length === 0 || !existsSync(MODEL)) return "missing";
 	if (starting) return "starting";
 	return proc && proc.exitCode === null ? "ready" : "stopped";
 }
 
 export function whisperModelName() {
 	return existsSync(MODEL) ? basename(MODEL) : null;
+}
+
+/** Which build is loaded, or would load next ("gpu" when the CUDA build is installed). */
+export function whisperBackend(): WhisperBackend | null {
+	if (proc && proc.exitCode === null && backend) return backend;
+	return candidates()[0]?.backend ?? null;
 }
 
 async function healthy(): Promise<boolean> {
@@ -56,36 +78,30 @@ async function healthy(): Promise<boolean> {
 export async function ensureWhisper(): Promise<void> {
 	if (whisperStatus() === "missing")
 		throw new Error(
-			`Whisper isn't installed. Expected ${SERVER_EXE} and ${MODEL}.`,
+			`Whisper isn't installed. Expected ${join(CPU_DIR, EXE)} and ${MODEL}.`,
 		);
 	// Reuse any healthy server on the port (ours, or one started by another process).
 	if (await healthy()) return;
 	if (starting) return starting;
 
 	starting = (async () => {
-		proc = Bun.spawn(
-			[
-				SERVER_EXE,
-				"-m",
-				MODEL,
-				"--host",
-				"127.0.0.1",
-				"--port",
-				String(PORT),
-				"-t",
-				String(THREADS),
-			],
-			{ cwd: DIR, stdout: "ignore", stderr: "ignore", windowsHide: true },
-		);
-		const deadline = Date.now() + 60_000;
-		while (Date.now() < deadline) {
-			if (proc.exitCode !== null)
-				throw new Error("Whisper server exited during start-up.");
-			if (await healthy()) break;
-			await Bun.sleep(250);
+		let lastError: unknown = null;
+		for (const c of candidates()) {
+			try {
+				await launch(c.dir, c.backend);
+				backend = c.backend;
+				lastError = null;
+				break;
+			} catch (err) {
+				lastError = err;
+				stopWhisper();
+				if (c.backend === "gpu") {
+					gpuFailed = true;
+					console.warn("[whisper] GPU build failed, using the CPU build:", err);
+				}
+			}
 		}
-		if (!(await healthy()))
-			throw new Error("Whisper server didn't start within 60 seconds.");
+		if (lastError) throw lastError;
 		lastUsed = Date.now();
 		if (!idleTimer) {
 			idleTimer = setInterval(() => {
@@ -96,6 +112,31 @@ export async function ensureWhisper(): Promise<void> {
 		starting = null;
 	});
 	return starting;
+}
+
+async function launch(dir: string, which: WhisperBackend) {
+	proc = Bun.spawn(
+		[
+			join(dir, EXE),
+			"-m",
+			MODEL,
+			"--host",
+			"127.0.0.1",
+			"--port",
+			String(PORT),
+			"-t",
+			String(which === "gpu" ? 4 : THREADS),
+		],
+		{ cwd: dir, stdout: "ignore", stderr: "ignore", windowsHide: true },
+	);
+	const deadline = Date.now() + 60_000;
+	while (Date.now() < deadline) {
+		if (proc.exitCode !== null)
+			throw new Error("Whisper server exited during start-up.");
+		if (await healthy()) return;
+		await Bun.sleep(250);
+	}
+	throw new Error("Whisper server didn't start within 60 seconds.");
 }
 
 export function stopWhisper() {
@@ -109,7 +150,23 @@ export async function transcribe(
 	opts: { language?: string; prompt?: string } = {},
 ): Promise<string> {
 	await ensureWhisper();
-	const run = async () => {
+	const run = async (): Promise<string> => {
+		try {
+			return await request();
+		} catch (err) {
+			// The GPU server died mid-request (driver reset, out of VRAM): retry once on CPU.
+			if (backend !== "gpu" || (proc && proc.exitCode === null)) throw err;
+			console.warn(
+				"[whisper] GPU server stopped, switching to the CPU build:",
+				err,
+			);
+			gpuFailed = true;
+			stopWhisper();
+			await ensureWhisper();
+			return request();
+		}
+	};
+	const request = async () => {
 		const form = new FormData();
 		form.append("file", wav, "audio.wav");
 		form.append("response_format", "json");

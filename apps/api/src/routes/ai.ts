@@ -18,6 +18,7 @@ import { projectNames } from "../lib/stats";
 import {
 	ensureWhisper,
 	transcribe,
+	whisperBackend,
 	whisperModelName,
 	whisperStatus,
 } from "../lib/whisper";
@@ -29,6 +30,7 @@ export const aiRouter = new Hono()
 			model: geminiModel(),
 			whisper: whisperStatus(),
 			whisperModel: whisperModelName(),
+			whisperBackend: whisperBackend(),
 		};
 		return c.json(status);
 	})

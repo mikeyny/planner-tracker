@@ -192,7 +192,7 @@ export function SettingsView() {
 					label="Speech recognition"
 					hint={
 						ai?.whisperModel
-							? `Whisper · ${ai.whisperModel} · runs on this PC`
+							? `Whisper · ${ai.whisperModel} · runs on this PC (${ai.whisperBackend === "gpu" ? "graphics card" : "processor"})`
 							: undefined
 					}
 				>

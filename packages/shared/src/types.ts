@@ -175,6 +175,8 @@ export interface AiStatus {
 	model: string;
 	whisper: "ready" | "stopped" | "starting" | "missing";
 	whisperModel: string | null;
+	/** "gpu" with the CUDA build installed and working, else "cpu". */
+	whisperBackend: "gpu" | "cpu" | null;
 }
 
 /** Messages pushed over the WebSocket. */

@@ -57,11 +57,11 @@ All API calls need the `X-Deep-Token` header from `.env`. The API also writes `~
 
 Voice brain dumps are transcribed on this PC by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) with the `large-v3-turbo` model (q5_0, 574 MB). The app records 16 kHz audio and sends it in ~20-second chunks cut at pauses, so text appears while you talk.
 
-- Current build: CPU with OpenBLAS (`tools/whisper/bin`, 61 MB). About 6–7 s per chunk on the i9-13900H.
-- The server starts on first use, keeps the model loaded, and stops after 15 idle minutes to free about 1 GB of RAM.
+- **GPU build (used when present):** CUDA 12.4 in `tools/whisper/bin-cuda` (1.2 GB, includes the CUDA runtime). On the RTX 4060 a 16-second chunk takes about 0.3 s (about 1.2 s for the first one while the model loads), using about 0.4 GB of video memory.
+- **CPU build (fallback):** OpenBLAS in `tools/whisper/bin` (61 MB), about 6–7 s per chunk on the i9-13900H. Deep switches to it automatically if the GPU build won't start or crashes, and stays on it until the API restarts.
+- Settings → Speech and AI shows which one is in use.
+- The server starts on first use, keeps the model loaded, and stops after 15 idle minutes to free memory.
 - Test it: `bun run whisper:test` (uses `tools/whisper/sample.wav`).
-
-**GPU upgrade (RTX 4060).** Transcription would drop to under a second per chunk with the CUDA build. It needs about 1.3 GB of extra disk: download `whisper-bin-win-cuda-12.4.0-x64.zip` from the whisper.cpp releases, extract its `Release` folder over `tools/whisper/bin`, and restart the API. The CUDA 11.8 build doesn't work here on its own because it expects cuBLAS to be installed separately.
 
 To re-download from scratch:
 
@@ -69,6 +69,9 @@ To re-download from scratch:
 mkdir -p tools/whisper && cd tools/whisper
 curl -L -o w.zip https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-blas-bin-x64.zip
 unzip w.zip && mv Release bin && rm w.zip
+# GPU build (NVIDIA): 685 MB download
+curl -L -o w.zip https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-win-cuda-12.4.0-x64.zip
+unzip w.zip && mv Release bin-cuda && rm w.zip
 curl -L -o ggml-large-v3-turbo-q5_0.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo-q5_0.bin
 ```
 

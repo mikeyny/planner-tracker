@@ -8,7 +8,7 @@
 
 Decisions taken:
 - **Desktop app from day one** with Tauri 2 (tray, global quick-capture hotkey, always-on-top mini timer), not a Chrome PWA.
-- **Local speech-to-text** with whisper.cpp + `large-v3-turbo` (q5_0). CPU/OpenBLAS for now because disk is tight; the CUDA build is a drop-in upgrade once ~1.3 GB is free.
+- **Local speech-to-text** with whisper.cpp + `large-v3-turbo` (q5_0). CUDA build on the RTX 4060 (about 0.3 s per chunk), with the CPU/OpenBLAS build as an automatic fallback.
 - Billable flag, client and hourly rate on projects now; timesheet export stays in Phase 4.
 - VS Code asks before starting a session (auto-start is a setting).
 - Daily deep-work target defaults to 3h30.
